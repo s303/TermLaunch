@@ -19,7 +19,7 @@ fi
 
 (cd "$ROOT" && xcodegen generate >/dev/null && xcodebuild \
   -project "$APP_NAME.xcodeproj" -scheme "$APP_NAME" -configuration Release \
-  -derivedDataPath build build | tail -1)
+  -derivedDataPath build ARCHS=arm64 ONLY_ACTIVE_ARCH=NO build | tail -1)
 
 BUILT="$ROOT/build/Build/Products/Release/$APP_NAME.app"
 [ -d "$BUILT" ] || { echo "error: build did not produce $BUILT" >&2; exit 1; }
