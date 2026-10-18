@@ -1,0 +1,43 @@
+name: TermLaunch
+options:
+  bundleIdPrefix: dev.termlaunch
+  deploymentTarget:
+    macOS: "14.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+targets:
+  TermLaunch:
+    type: application
+    platform: macOS
+    sources:
+      - Sources/TermLaunch
+      - path: Resources/ghostty
+        type: folder
+        buildPhase: resources
+      - path: Resources/terminfo
+        type: folder
+        buildPhase: resources
+    dependencies:
+      # Linked, not embedded: embedding breaks signing on non-Developer-ID builds.
+      - framework: Frameworks/GhosttyKit.xcframework
+        embed: false
+        link: true
+      - sdk: libc++.tbd
+      - sdk: Metal.framework
+      - sdk: QuartzCore.framework
+      - sdk: Carbon.framework
+    info:
+      path: Sources/TermLaunch/Info.plist
+      properties:
+        CFBundleName: TermLaunch
+        LSUIElement: true
+        LSMinimumSystemVersion: "14.0"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.termlaunch.app
+        ENABLE_HARDENED_RUNTIME: NO
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"

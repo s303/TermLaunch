@@ -1,0 +1,8 @@
+vendor/
+Frameworks/
+Resources/
+*.xcodeproj
+build/
+DerivedData/
+.DS_Store
+Sources/TermLaunch/Info.plist

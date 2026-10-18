@@ -1,0 +1,18 @@
+# TermLaunch
+
+macOS-only resident terminal: a global hotkey fades in a borderless Dropdown with Tabs. See [CONTEXT.md](CONTEXT.md) for the language and [docs/adr](docs/adr) for decisions.
+
+## Build
+
+Needs full Xcode (not just Command Line Tools) and Homebrew.
+
+```bash
+scripts/setup.sh   # builds GhosttyKit (pinned), generates TermLaunch.xcodeproj
+xcodebuild -project TermLaunch.xcodeproj -scheme TermLaunch build
+```
+
+Scaffold hotkey: Ctrl+`.
+
+## Config
+
+`~/.config/termlaunch/config.toml` (created on first run, reloaded automatically; menu-bar item has Open/Reload). Holds the activation hotkey, chord window, fade, size, edge and `[[command]]` bindings. Terminal appearance comes from your Ghostty config.
