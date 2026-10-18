@@ -122,7 +122,7 @@ final class GhosttyApp {
         runtime.write_clipboard_cb = { _, location, content, len, confirm in
             guard location == GHOSTTY_CLIPBOARD_STANDARD, !confirm, let content else { return }
             for i in 0..<len {
-                guard let mime = content[i].mime, String(cString: mime) == "text/plain",
+                guard let mime = content[i].mime, String(cString: mime).hasPrefix("text/plain"),
                       let data = content[i].data else { continue }
                 let text = String(decoding: UnsafeBufferPointer(start: UnsafeRawPointer(data).assumingMemoryBound(to: UInt8.self), count: content[i].len), as: UTF8.self)
                 DispatchQueue.main.async {

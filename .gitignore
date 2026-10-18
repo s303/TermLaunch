@@ -7,3 +7,5 @@ DerivedData/
 .DS_Store
 Sources/TermLaunch/Info.plist
 dist/
+_bmad/
+_bmad-output/
