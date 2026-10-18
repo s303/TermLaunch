@@ -1,7 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem?
     private var ghostty: GhosttyApp?
     private var panel: DropdownPanel?
@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKey: HotKey?
     private var config = Config()
     private var configWatcher: ConfigWatcher?
+    private let loginItemEntry = NSMenuItem(title: "Launch at Login", action: nil, keyEquivalent: "")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard let ghostty = GhosttyApp() else {
@@ -40,6 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.reloadConfig(initial: false)
         }
         installStatusItem()
+        LoginItem.applyDefaultIfNeeded()
         panel.warmUp()
 
         #if DEBUG
@@ -146,10 +148,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Open Config", action: #selector(openConfig), keyEquivalent: "")
         menu.addItem(withTitle: "Reload Config", action: #selector(reloadConfigAction), keyEquivalent: "")
         menu.addItem(.separator())
+        loginItemEntry.action = #selector(toggleLoginItem)
+        menu.addItem(loginItemEntry)
+        menu.addItem(.separator())
         menu.addItem(withTitle: "Quit TermLaunch", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         for item in menu.items where item.action != #selector(NSApplication.terminate(_:)) { item.target = self }
+        menu.delegate = self
         item.menu = menu
         statusItem = item
+    }
+
+    @objc private func toggleLoginItem() {
+        LoginItem.setEnabled(!LoginItem.isEnabled)
+    }
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        loginItemEntry.state = LoginItem.isEnabled ? .on : .off
+        loginItemEntry.title = LoginItem.needsApproval
+            ? "Launch at Login (approve in System Settings)" : "Launch at Login"
     }
 }
 

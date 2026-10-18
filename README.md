@@ -11,7 +11,15 @@ scripts/setup.sh   # builds GhosttyKit (pinned), generates TermLaunch.xcodeproj
 xcodebuild -project TermLaunch.xcodeproj -scheme TermLaunch build
 ```
 
-Scaffold hotkey: Ctrl+`.
+Default hotkey: Ctrl+` (`activation` in the config).
+
+## Install
+
+```bash
+scripts/install.sh   # builds Release, copies to /Applications, launches it
+```
+
+The installed copy turns on launch at login the first time it starts (toggle in the menu-bar item). macOS may ask you to approve it once in System Settings > General > Login Items.
 
 ## Config
 

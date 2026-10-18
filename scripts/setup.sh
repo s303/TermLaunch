@@ -10,6 +10,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="$ROOT/vendor/ghostty"
 STAMP="$ROOT/Frameworks/.ghostty-build-stamp"
 
+# Full Xcode is needed; use it even when xcode-select points at the CLT.
+if ! xcodebuild -version >/dev/null 2>&1 && [ -d /Applications/Xcode.app ]; then
+  export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+fi
 if ! xcodebuild -version >/dev/null 2>&1; then
   echo "error: full Xcode is required (xcode-select -p must point at Xcode.app)" >&2
   exit 1
