@@ -27,10 +27,17 @@ BUILT="$ROOT/build/Build/Products/Release/$APP_NAME.app"
 # Quit the running copy so the files can be replaced.
 if pgrep -x "$APP_NAME" >/dev/null; then
   pkill -x "$APP_NAME"
-  while pgrep -x "$APP_NAME" >/dev/null; do sleep 0.2; done
+  for _ in $(seq 25); do
+    pgrep -x "$APP_NAME" >/dev/null || break
+    sleep 0.2
+  done
+  pkill -9 -x "$APP_NAME" 2>/dev/null || true
 fi
 
+# Copy beside the old install first so a failed copy never leaves no app.
+rm -rf "$DEST.new"
+cp -R "$BUILT" "$DEST.new"
 rm -rf "$DEST"
-cp -R "$BUILT" "$DEST"
+mv "$DEST.new" "$DEST"
 open "$DEST"
 echo "installed $DEST"

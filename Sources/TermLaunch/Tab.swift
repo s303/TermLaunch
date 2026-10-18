@@ -1,7 +1,7 @@
 import Foundation
 
 /// One Tab in the Dropdown. Shell Tabs run the default shell; Command Tabs
-/// (not wired to Command keys yet) run a bound command and are unique per key.
+/// run a bound command (see Config) and are unique per Command key.
 final class Tab {
     enum Kind: Equatable {
         case shell

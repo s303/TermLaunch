@@ -34,9 +34,10 @@ struct Config: Equatable {
     /// Bad values fall back to defaults with a warning. An unreadable or
     /// unparseable file yields a nil config, so callers keep their current one
     /// (a half-saved edit must not wipe the hotkey and commands).
-    static func load() -> (config: Config?, warnings: [String]) {
+    static func load() -> (config: Config?, warnings: [String]) { load(from: path) }
+
+    static func load(from url: URL) -> (config: Config?, warnings: [String]) {
         var warnings: [String] = []
-        let url = path
         if !FileManager.default.fileExists(atPath: url.path) {
             try? FileManager.default.createDirectory(
                 at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -51,24 +52,34 @@ struct Config: Equatable {
         }
 
         var cfg = Config()
-        if let v = doc.root["activation"]?.string {
-            if KeySpec.parse(v) != nil { cfg.activation = v } else { warnings.append("bad activation \"\(v)\"") }
+        if let value = doc.root["activation"] {
+            if let v = value.string, KeySpec.parse(v) != nil { cfg.activation = v } else { warnings.append("bad activation") }
         }
-        if let v = doc.root["chord_window_ms"]?.int, v >= 0 { cfg.chordWindowMs = v }
-        if let v = doc.root["fade_ms"]?.int, v >= 0 { cfg.fadeMs = v }
-        if let v = doc.root["columns"]?.int {
-            if (10...1000).contains(v) { cfg.columns = v } else { warnings.append("columns must be 10...1000") }
+        let known: Set<String> = ["activation", "chord_window_ms", "fade_ms", "columns", "rows", "edge", "size"]
+        for key in doc.root.keys.sorted() where !known.contains(key) { warnings.append("unknown key \"\(key)\"") }
+        for name in doc.tables.keys.sorted() { warnings.append("unknown table [\(name)]") }
+        for name in doc.arrays.keys.sorted() where name != "command" { warnings.append("unknown table [[\(name)]]") }
+
+        func int(_ key: String, _ range: ClosedRange<Int>, _ apply: (Int) -> Void) {
+            guard let value = doc.root[key] else { return }
+            if let v = value.int, range.contains(v) { apply(v) } else {
+                warnings.append("\(key) must be an integer in \(range.lowerBound)...\(range.upperBound)")
+            }
         }
-        if let v = doc.root["rows"]?.int {
-            if (3...500).contains(v) { cfg.rows = v } else { warnings.append("rows must be 3...500") }
-        }
+        int("chord_window_ms", 0...10_000) { cfg.chordWindowMs = $0 }
+        int("fade_ms", 0...10_000) { cfg.fadeMs = $0 }
+        int("columns", 10...1000) { cfg.columns = $0 }
+        int("rows", 3...500) { cfg.rows = $0 }
         if doc.root["size"] != nil { warnings.append("size is replaced by columns and rows") }
-        if let v = doc.root["edge"]?.string {
-            if let e = Edge(rawValue: v) { cfg.edge = e } else { warnings.append("bad edge \"\(v)\"") }
+        if let value = doc.root["edge"] {
+            if let v = value.string, let e = Edge(rawValue: v) { cfg.edge = e } else { warnings.append("bad edge") }
         }
 
         var seen = Set<String>()
         for (i, table) in (doc.arrays["command"] ?? []).enumerated() {
+            for k in table.keys.sorted() where !["key", "run", "cwd"].contains(k) {
+                warnings.append("[[command]] #\(i + 1): unknown key \"\(k)\"")
+            }
             guard let key = table["key"]?.string?.lowercased(), key.count == 1,
                   KeySpec.keyCode(forName: key) != nil,
                   let run = table["run"]?.string, !run.isEmpty else {

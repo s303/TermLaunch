@@ -17,8 +17,9 @@ enum LoginItem {
         let defaults = UserDefaults.standard
         guard !defaults.bool(forKey: defaultedKey),
               Bundle.main.bundlePath.hasPrefix("/Applications/") else { return }
-        defaults.set(true, forKey: defaultedKey)
         setEnabled(true)
+        // Only after a registration that took (or awaits approval), so a failure is retried next launch.
+        if isEnabled || needsApproval { defaults.set(true, forKey: defaultedKey) }
     }
 
     static func setEnabled(_ enabled: Bool) {

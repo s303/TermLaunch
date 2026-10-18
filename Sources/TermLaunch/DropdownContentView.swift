@@ -59,28 +59,10 @@ final class DropdownContentView: NSView {
         add(
             kind: .command(key: binding.key),
             title: binding.run,
-            command: Self.wrapperCommand(run: binding.run, exitFile: exitFile),
+            command: ShellCommand.wrapper(run: binding.run, exitFile: exitFile),
             workingDirectory: cwd,
             exitFile: exitFile
         )
-    }
-
-    /// `/bin/sh` runs the user's login shell (so PATH matches a normal terminal;
-    /// the app itself is started by launchd with a minimal environment) and
-    /// records the real exit code in a file.
-    static func wrapperCommand(run: String, exitFile: String) -> String {
-        let shell = loginShell()
-        let script = "\(shQuote(shell)) -l -c \(shQuote(run)); printf %s $? > \(shQuote(exitFile))"
-        return "/bin/sh -c \(shQuote(script))"
-    }
-
-    private static func loginShell() -> String {
-        if let pw = getpwuid(getuid()), let sh = pw.pointee.pw_shell { return String(cString: sh) }
-        return ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
-    }
-
-    private static func shQuote(_ s: String) -> String {
-        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     @discardableResult
@@ -95,7 +77,7 @@ final class DropdownContentView: NSView {
         let tab = Tab(kind: kind, view: view, title: title)
         view.onSuccessfulExit = { [weak self, weak tab] in
             guard let self, let tab else { return }
-            self.close(tab)
+            self.close(tab, exitedCleanly: true)
         }
         view.onClose = { [weak self, weak tab] in
             guard let self, let tab else { return }
@@ -145,14 +127,14 @@ final class DropdownContentView: NSView {
         if let tab = active { close(tab) }
     }
 
-    private func close(_ tab: Tab) {
+    private func close(_ tab: Tab, exitedCleanly: Bool = false) {
         guard let index = tabs.firstIndex(where: { $0 === tab }) else { return }
         #if DEBUG
         NSLog("TermLaunch[debug]: tab closed (%d left)", tabs.count - 1)
         #endif
         tabs.remove(at: index)
         tab.view.removeFromSuperview()
-        if case .command = tab.kind { onCommandTabClosed?() }
+        if exitedCleanly, case .command = tab.kind { onCommandTabClosed?() }
         if tabs.isEmpty {
             shellCount = 0
             refreshBar()

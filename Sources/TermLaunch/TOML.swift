@@ -12,7 +12,7 @@ enum TOMLValue: Equatable {
     var int: Int? {
         switch self {
         case .int(let i): return i
-        case .double(let d): return d == d.rounded() ? Int(d) : nil
+        case .double(let d): return d.isFinite && d == d.rounded() && abs(d) < 9e18 ? Int(d) : nil
         default: return nil
         }
     }
@@ -47,9 +47,9 @@ enum TOML {
         enum Target { case root, table(String), array(String) }
         var target = Target.root
 
-        for (index, rawLine) in text.split(separator: "\n", omittingEmptySubsequences: false).enumerated() {
+        for (index, rawLine) in text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).enumerated() {
             let lineNo = index + 1
-            let line = stripComment(String(rawLine)).trimmingCharacters(in: .whitespaces)
+            let line = stripComment(String(rawLine)).trimmingCharacters(in: .whitespacesAndNewlines)
             if line.isEmpty { continue }
 
             if line.hasPrefix("[[") {

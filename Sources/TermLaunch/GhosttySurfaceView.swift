@@ -59,6 +59,11 @@ final class GhosttySurfaceView: NSView, NSTextInputClient {
 
     override var acceptsFirstResponder: Bool { true }
 
+    /// Inactive Tabs stay mounted at zero opacity; they must not take clicks or scrolls.
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        alphaValue == 0 ? nil : super.hitTest(point)
+    }
+
     // MARK: Surface lifecycle
 
     /// A surface created at zero size renders blank, so wait for a real frame.
