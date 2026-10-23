@@ -94,4 +94,58 @@ final class ConfigTests: XCTestCase {
         ])
         XCTAssertEqual(result.warnings.count, 4) // duplicate, multi-char key, missing run, unknown key
     }
+
+    func testCommandHotkeys() throws {
+        let result = try load("""
+        activation = "ctrl+`"
+        [[command]]
+        hotkey = "F2"
+        run = "o"
+        [[command]]
+        key = "g"
+        hotkey = "cmd+shift+g"
+        run = "lazygit"
+        [[command]]
+        hotkey = "f2"
+        run = "dup"
+        [[command]]
+        hotkey = "ctrl+`"
+        run = "clash"
+        [[command]]
+        hotkey = "bogus"
+        run = "bad"
+        [[command]]
+        run = "nokeys"
+        """)
+        let c = try XCTUnwrap(result.config)
+        XCTAssertEqual(c.commands, [
+            CommandBinding(key: nil, run: "o", cwd: nil, hotkey: "F2"),
+            CommandBinding(key: "g", run: "lazygit", cwd: nil, hotkey: "cmd+shift+g"),
+        ])
+        XCTAssertEqual(c.commands.map(\.id), ["hotkey:f2", "key:g"])
+        XCTAssertEqual(result.warnings.count, 4)
+    }
+
+    func testRejectedCommandDoesNotClaimItsKey() throws {
+        let result = try load("""
+        [[command]]
+        hotkey = "f2"
+        run = "a"
+        [[command]]
+        key = "g"
+        hotkey = "f2"
+        run = "dup hotkey"
+        [[command]]
+        key = "g"
+        run = "reuses key"
+        [[command]]
+        key = "h"
+        hotkey = "h"
+        run = "ids differ"
+        """)
+        let c = try XCTUnwrap(result.config)
+        XCTAssertEqual(c.commands.map(\.run), ["a", "reuses key", "ids differ"])
+        XCTAssertEqual(Set(c.commands.map(\.id)).count, 3)
+        XCTAssertEqual(result.warnings.count, 1)
+    }
 }

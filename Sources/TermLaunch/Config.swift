@@ -2,9 +2,18 @@ import Foundation
 
 struct CommandBinding: Equatable {
     /// Single key pressed during the chord window (lowercased).
-    let key: String
+    let key: String?
     let run: String
     let cwd: String?
+    /// Global hotkey (KeySpec syntax) that shows the Dropdown and opens this command.
+    var hotkey: String? = nil
+
+    /// Identity of the Command Tab; at most one Tab exists per id.
+    var id: String {
+        if let key { return "key:" + key }
+        if let hotkey { return "hotkey:" + hotkey.lowercased() }
+        return "run:" + run
+    }
 }
 
 enum Edge: String {
@@ -76,21 +85,49 @@ struct Config: Equatable {
         }
 
         var seen = Set<String>()
+        var seenHotkeys = Set<KeySpec>()
+        if let activation = KeySpec.parse(cfg.activation) { seenHotkeys.insert(activation) }
         for (i, table) in (doc.arrays["command"] ?? []).enumerated() {
-            for k in table.keys.sorted() where !["key", "run", "cwd"].contains(k) {
+            for k in table.keys.sorted() where !["key", "run", "cwd", "hotkey"].contains(k) {
                 warnings.append("[[command]] #\(i + 1): unknown key \"\(k)\"")
             }
-            guard let key = table["key"]?.string?.lowercased(), key.count == 1,
-                  KeySpec.keyCode(forName: key) != nil,
-                  let run = table["run"]?.string, !run.isEmpty else {
-                warnings.append("[[command]] #\(i + 1) needs a key (one letter, digit or punctuation mark) and a run")
+            guard let run = table["run"]?.string, !run.isEmpty else {
+                warnings.append("[[command]] #\(i + 1) needs a run")
                 continue
             }
-            guard seen.insert(key).inserted else {
+            var key: String?
+            if let value = table["key"] {
+                guard let k = value.string?.lowercased(), k.count == 1, KeySpec.keyCode(forName: k) != nil else {
+                    warnings.append("[[command]] #\(i + 1): key must be one letter, digit or punctuation mark")
+                    continue
+                }
+                key = k
+            }
+            var hotkey: String?
+            if let value = table["hotkey"] {
+                guard let h = value.string, KeySpec.parse(h) != nil else {
+                    warnings.append("[[command]] #\(i + 1): bad hotkey")
+                    continue
+                }
+                hotkey = h
+            }
+            guard key != nil || hotkey != nil else {
+                warnings.append("[[command]] #\(i + 1) needs a key or a hotkey")
+                continue
+            }
+            if let key, seen.contains(key) {
                 warnings.append("duplicate command key \"\(key)\"")
                 continue
             }
-            cfg.commands.append(CommandBinding(key: key, run: run, cwd: table["cwd"]?.string))
+            let spec = hotkey.flatMap(KeySpec.parse)
+            if let spec, seenHotkeys.contains(spec) {
+                warnings.append("duplicate hotkey \"\(hotkey ?? "")\" (also the activation key or another command)")
+                continue
+            }
+            // Only accepted commands claim their key and hotkey.
+            if let key { seen.insert(key) }
+            if let spec { seenHotkeys.insert(spec) }
+            cfg.commands.append(CommandBinding(key: key, run: run, cwd: table["cwd"]?.string, hotkey: hotkey))
         }
         return (cfg, warnings)
     }
@@ -114,11 +151,15 @@ struct Config: Equatable {
     rows = 30
     edge = "top"
 
-    # Command keys. Each runs in its own Tab through your login shell; the Tab
+    # Commands. Each runs in its own Tab through your login shell; the Tab
     # closes (and the Dropdown hides) on exit 0, otherwise it holds the output.
+    # "key" is pressed right after the Activation key; "hotkey" is a global
+    # shortcut (like activation, e.g. "f2" or "cmd+shift+g") that works from
+    # anywhere. Set either or both.
     #
     # [[command]]
     # key = "g"
+    # hotkey = "f2"
     # run = "lazygit"
     # cwd = "~/src"
 

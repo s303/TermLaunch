@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var panel: DropdownPanel?
     private var content: DropdownContentView?
     private var hotKey: HotKey?
+    private var commandHotKeys: [HotKey] = []
     private var config = Config()
     private var configWatcher: ConfigWatcher?
     private let loginItemEntry = NSMenuItem(title: "Launch at Login", action: nil, keyEquivalent: "")
@@ -89,7 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             panel.fadeDuration = TimeInterval(cfg.fadeMs) / 1000
             panel.edge = cfg.edge
             panel.chordWindow = TimeInterval(cfg.chordWindowMs) / 1000
-            panel.commandKeys = Set(cfg.commands.map(\.key))
+            panel.commandKeys = Set(cfg.commands.compactMap(\.key))
         }
         hotKey = nil // unregisters the old one
         if let spec = KeySpec.parse(cfg.activation) {
@@ -97,8 +98,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self?.toggleDropdown()
             }
         }
+        commandHotKeys = []
+        for (i, binding) in cfg.commands.enumerated() {
+            guard let text = binding.hotkey, let spec = KeySpec.parse(text) else { continue }
+            let hk = HotKey(id: UInt32(i + 2), keyCode: spec.keyCode, modifiers: spec.modifiers) { [weak self] in
+                self?.commandHotkeyPressed(binding)
+            }
+            if let hk { commandHotKeys.append(hk) } else {
+                NSLog("TermLaunch: could not register hotkey \"%@\"", text)
+            }
+        }
         if hotKey == nil { NSLog("TermLaunch: could not register activation key \"%@\"", cfg.activation) }
-        NSLog("TermLaunch: config loaded (%d command key(s))", cfg.commands.count)
+        NSLog("TermLaunch: config loaded (%d command(s), %d hotkey(s))",
+              cfg.commands.count, commandHotKeys.count)
     }
 
     @objc private func openConfig() {
@@ -123,6 +135,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         content?.openCommandTab(binding)
     }
 
+    /// Global hotkey: show the Dropdown on the command's Tab; pressed again
+    /// while that Tab is showing, hide it.
+    private func commandHotkeyPressed(_ binding: CommandBinding) {
+        guard let panel, let content else { return }
+        if panel.isShown, content.isCommandTabActive(binding.id) {
+            hideDropdown()
+            return
+        }
+        content.openCommandTab(binding) // before showing, so an empty Dropdown gets no stray Shell Tab
+        showDropdown(startChord: false)
+    }
+
     private func showDropdown(startChord: Bool) {
         guard let panel, let content else { return }
         if content.isEmpty { content.addShellTab() }
@@ -138,7 +162,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func toggleDropdown() {
         guard let panel else { return }
-        if panel.isShown { hideDropdown() } else { showDropdown(startChord: true) }
+        if panel.isShown { hideDropdown() } else {
+            content?.selectMainTab() // the Activation key always lands on the main Shell Tab
+            showDropdown(startChord: true)
+        }
     }
 
     private func installStatusItem() {

@@ -1,7 +1,7 @@
 import Carbon.HIToolbox
 
 /// A parsed hotkey such as "ctrl+`" or "cmd+shift+space".
-struct KeySpec: Equatable {
+struct KeySpec: Hashable {
     let keyCode: Int
     let modifiers: Int // Carbon flags
 

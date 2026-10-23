@@ -9,10 +9,13 @@ The single borderless window anchored to a screen edge. It fades in when the Act
 _Avoid_: Quake window, popup, panel
 
 **Activation key**:
-The single global hotkey. Pressing it shows the Dropdown if hidden and hides it if visible. Appearing and disappearing is a fade, with a configurable duration.
+The main global hotkey (commands may add their own, see Command hotkey). Pressing it shows the Dropdown if hidden and hides it if visible. Appearing and disappearing is a fade, with a configurable duration.
 
 **Command key**:
 A key bound to a configured CLI command. Pressing it right after the Activation key opens a Tab running that command in the Dropdown.
+
+**Command hotkey**:
+An optional global hotkey on a command (`hotkey = "f2"`). Pressing it from anywhere shows the Dropdown and opens or focuses that command's Command Tab; pressing it while that Tab is showing hides the Dropdown.
 
 **Chord window**:
 The configurable time after the Activation key shows the Dropdown during which a Command key is recognised. A Command key is a single key. Keys typed during the window are held back from the terminal; when the window ends without a Command key, the held keys are sent to the terminal as input.

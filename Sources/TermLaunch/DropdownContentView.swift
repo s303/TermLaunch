@@ -26,6 +26,7 @@ final class DropdownContentView: NSView {
     var barHeight: CGFloat { bar.isHidden ? 0 : TabBarView.height }
 
     func cellMetrics() -> (cell: CGSize, padding: CGSize)? { active?.view.cellMetrics() }
+    func isCommandTabActive(_ id: String) -> Bool { active?.kind == .command(id: id) }
     private var active: Tab? { tabs.indices.contains(activeIndex) ? tabs[activeIndex] : nil }
 
     init(ghostty: GhosttyApp) {
@@ -46,18 +47,23 @@ final class DropdownContentView: NSView {
         return add(kind: .shell, title: "shell \(shellCount)", command: nil)
     }
 
+    /// Focuses the first Shell Tab, creating one if none exists.
+    func selectMainTab() {
+        if let i = tabs.firstIndex(where: { $0.kind == .shell }) { select(i) } else { addShellTab() }
+    }
+
     /// Opens the Command Tab for a binding, or focuses the existing one
     /// (at most one Command Tab per Command key).
     func openCommandTab(_ binding: CommandBinding) {
-        if let existing = tabs.firstIndex(where: { $0.kind == .command(key: binding.key) }) {
+        if let existing = tabs.firstIndex(where: { $0.kind == .command(id: binding.id) }) {
             select(existing)
             return
         }
-        NSLog("TermLaunch: opening command tab for key %@", binding.key)
+        NSLog("TermLaunch: opening command tab for %@", binding.id)
         let exitFile = NSTemporaryDirectory() + "termlaunch-exit-\(UUID().uuidString)"
         let cwd = binding.cwd.map { ($0 as NSString).expandingTildeInPath } ?? NSHomeDirectory()
         add(
-            kind: .command(key: binding.key),
+            kind: .command(id: binding.id),
             title: binding.run,
             command: ShellCommand.wrapper(run: binding.run, exitFile: exitFile),
             workingDirectory: cwd,
