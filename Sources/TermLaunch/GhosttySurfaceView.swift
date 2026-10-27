@@ -225,7 +225,9 @@ final class GhosttySurfaceView: NSView, NSTextInputClient {
 
     /// ⌘C/⌘V/⌘A/⌘K and font size, routed to libghostty's own actions.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        guard let surface, event.type == .keyDown else { return false }
+        // Every tab's view stays in the hierarchy, so AppKit offers the key to
+        // all of them; only the focused one may act on it.
+        guard let surface, event.type == .keyDown, window?.firstResponder === self else { return false }
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         guard flags.contains(.command), !flags.contains(.control), !flags.contains(.option),
               let key = event.charactersIgnoringModifiers?.lowercased() else { return false }
