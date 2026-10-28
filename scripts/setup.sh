@@ -3,7 +3,7 @@
 # Needs full Xcode (Metal toolchain + xcodebuild) and Homebrew.
 set -euo pipefail
 
-GHOSTTY_COMMIT="d2865b8f578fa4e85e2f2b85ef97f5ef69de951f"
+GHOSTTY_COMMIT="6ba144158577d033ccb6ed4b574e4013957c9161"
 GHOSTTY_REPO="https://github.com/ghostty-org/ghostty.git"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -24,10 +24,10 @@ if ! xcrun -f metal >/dev/null 2>&1; then
 fi
 
 # Ghostty pins its Zig version (minimum_zig_version in build.zig.zon); resolve
-# the keg-only formula by prefix instead of relying on PATH.
-brew list zig@0.16 >/dev/null 2>&1 || brew install zig@0.16
+# the formula by prefix instead of relying on PATH.
+brew list zig >/dev/null 2>&1 || brew install zig
 brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
-ZIG="$(brew --prefix zig@0.16)/bin/zig"
+ZIG="$(brew --prefix zig)/bin/zig"
 
 mkdir -p "$ROOT/vendor" "$ROOT/Frameworks"
 if [ ! -d "$SRC/.git" ]; then
