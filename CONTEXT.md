@@ -29,3 +29,19 @@ A Tab running the command bound to a Command key. There is at most one per Comma
 
 **Shell Tab**:
 A Tab running the default shell. It is what appears when the Dropdown is shown without a Command key. There can be many. A Shell Tab closes when its shell exits; if it was the last Tab, the Dropdown hides and a fresh Shell Tab is created on the next show.
+
+**Window mode**:
+TermLaunch can also run as a normal window, entered and left by the Window hotkey (`window_hotkey` in the config, no default). The Tabs are the same Tabs and sessions as in the Dropdown, reparented between the two. While in Window mode the app has a Dock icon and appears in ⌘Tab; leaving Window mode removes both. The Window is freely resizable, starts at the Dropdown's grid size centred on the screen, and its frame is remembered for the app session.
+_Avoid_: Detached, pop-out
+
+**Window hotkey**:
+Toggles between the Dropdown and Window mode, keeping all Tabs. Closing the Window (red button, ⌘W on the last Tab, ⌘Q) also leaves Window mode and keeps the Tabs; the Activation key then shows the Dropdown. Minimising the Window stays in Window mode. Quitting is only in the menu-bar item.
+
+**Temporary console**:
+In Window mode, when the Window is not the key window (behind other apps or minimised), the Activation key or a Command hotkey shows the Dropdown with the same Tabs and hides the Window meanwhile. Dismissing it (same key, or losing focus) restores the Window to its previous frame, z-order and minimised state without taking focus. The Dock icon stays throughout. The Chord window applies only here, not to the Window.
+
+**Window mode key rules**:
+- Activation key while the Window is key: ignored (swallowed).
+- Command hotkey while the Window is key: opens or focuses that Command Tab in the Window; pressing it again does nothing.
+- ⌘T, ⌘W, ⌘⇧[ / ⌘⇧], ⌘1–9 work through a minimal app menu with no Quit item (⌘Q is Close Window).
+- A Command Tab that finishes successfully closes only that Tab in the Window; the Window stays.

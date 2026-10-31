@@ -24,6 +24,8 @@ enum Edge: String {
 /// appearance comes from the user's Ghostty config, not from here.
 struct Config: Equatable {
     var activation = "ctrl+`"
+    /// Global hotkey that toggles Window mode; nil leaves Window mode unreachable.
+    var windowHotkey: String? = nil
     var chordWindowMs = 300
     var fadeMs = 120
     var columns = 120
@@ -64,7 +66,18 @@ struct Config: Equatable {
         if let value = doc.root["activation"] {
             if let v = value.string, KeySpec.parse(v) != nil { cfg.activation = v } else { warnings.append("bad activation") }
         }
-        let known: Set<String> = ["activation", "chord_window_ms", "fade_ms", "columns", "rows", "edge", "size"]
+        var windowSpec: KeySpec?
+        if let value = doc.root["window_hotkey"] {
+            if let v = value.string, let spec = KeySpec.parse(v) {
+                if spec == KeySpec.parse(cfg.activation) {
+                    warnings.append("window_hotkey duplicates the activation key")
+                } else {
+                    cfg.windowHotkey = v
+                    windowSpec = spec
+                }
+            } else { warnings.append("bad window_hotkey") }
+        }
+        let known: Set<String> = ["activation", "window_hotkey", "chord_window_ms", "fade_ms", "columns", "rows", "edge", "size"]
         for key in doc.root.keys.sorted() where !known.contains(key) { warnings.append("unknown key \"\(key)\"") }
         for name in doc.tables.keys.sorted() { warnings.append("unknown table [\(name)]") }
         for name in doc.arrays.keys.sorted() where name != "command" { warnings.append("unknown table [[\(name)]]") }
@@ -87,6 +100,7 @@ struct Config: Equatable {
         var seen = Set<String>()
         var seenHotkeys = Set<KeySpec>()
         if let activation = KeySpec.parse(cfg.activation) { seenHotkeys.insert(activation) }
+        if let windowSpec { seenHotkeys.insert(windowSpec) }
         for (i, table) in (doc.arrays["command"] ?? []).enumerated() {
             for k in table.keys.sorted() where !["key", "run", "cwd", "hotkey"].contains(k) {
                 warnings.append("[[command]] #\(i + 1): unknown key \"\(k)\"")
@@ -121,7 +135,7 @@ struct Config: Equatable {
             }
             let spec = hotkey.flatMap(KeySpec.parse)
             if let spec, seenHotkeys.contains(spec) {
-                warnings.append("duplicate hotkey \"\(hotkey ?? "")\" (also the activation key or another command)")
+                warnings.append("duplicate hotkey \"\(hotkey ?? "")\" (also the activation key, the window hotkey or another command)")
                 continue
             }
             // Only accepted commands claim their key and hotkey.
@@ -137,6 +151,10 @@ struct Config: Equatable {
 
     # Global hotkey that shows/hides the Dropdown.
     activation = "ctrl+`"
+
+    # Optional global hotkey that toggles between the Dropdown and a normal
+    # window with the same Tabs (e.g. "cmd+shift+space"). Unset = no window mode.
+    # window_hotkey = "cmd+shift+space"
 
     # After the Dropdown appears, a Command key pressed within this many ms
     # opens its command. Any other key ends the window and goes to the terminal.

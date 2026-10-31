@@ -53,6 +53,7 @@ targets:
       - Sources/TermLaunch/Config.swift
       - Sources/TermLaunch/KeySpec.swift
       - Sources/TermLaunch/ShellCommand.swift
+      - Sources/TermLaunch/Presentation.swift
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES

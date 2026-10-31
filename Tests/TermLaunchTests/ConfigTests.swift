@@ -148,4 +148,34 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(Set(c.commands.map(\.id)).count, 3)
         XCTAssertEqual(result.warnings.count, 1)
     }
+
+    func testWindowHotkey() throws {
+        let ok = try load("window_hotkey = \"cmd+shift+space\"\n")
+        XCTAssertEqual(ok.warnings, [])
+        XCTAssertEqual(ok.config?.windowHotkey, "cmd+shift+space")
+
+        let bad = try load("window_hotkey = \"bogus\"\n")
+        XCTAssertEqual(bad.config, Config())
+        XCTAssertEqual(bad.warnings.count, 1)
+
+        let clash = try load("""
+        activation = "f1"
+        window_hotkey = "F1"
+        [[command]]
+        hotkey = "f3"
+        run = "a"
+        """)
+        XCTAssertNil(clash.config?.windowHotkey)
+        XCTAssertEqual(clash.warnings.count, 1)
+
+        let cmdClash = try load("""
+        window_hotkey = "f4"
+        [[command]]
+        hotkey = "f4"
+        run = "a"
+        """)
+        XCTAssertEqual(cmdClash.config?.windowHotkey, "f4")
+        XCTAssertEqual(cmdClash.config?.commands, [])
+        XCTAssertEqual(cmdClash.warnings.count, 1)
+    }
 }

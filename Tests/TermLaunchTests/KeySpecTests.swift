@@ -8,6 +8,11 @@ final class KeySpecTests: XCTestCase {
         XCTAssertEqual(KeySpec.parse("opt+f12")?.keyCode, 111)
     }
 
+    func testEnterIsAnAliasForReturn() {
+        XCTAssertEqual(KeySpec.parse("cmd+enter"), KeySpec.parse("cmd+return"))
+        XCTAssertEqual(KeySpec.parse("cmd+enter")?.keyCode, 36)
+    }
+
     func testParseRejectsInvalid() {
         XCTAssertNil(KeySpec.parse("a+b"))
         XCTAssertNil(KeySpec.parse("ctrl+"))

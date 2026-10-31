@@ -118,7 +118,10 @@ final class DropdownPanel: NSPanel {
         }
     }
 
+    /// When `show()` last ran, for ignoring the deactivation right after a Temporary console appears.
+    private(set) var shownAt = Date.distantPast
     func show() {
+        shownAt = Date()
         swallowedKeyCodes.removeAll()
         let frame = targetFrame(on: Self.screenUnderMouse())
         setFrame(frame, display: false)
@@ -165,6 +168,14 @@ final class DropdownPanel: NSPanel {
             break
         }
         super.sendEvent(event)
+    }
+
+    /// Hides without the fade, for handing the content to the Window.
+    func hideImmediately() {
+        endChord()
+        swallowedKeyCodes.removeAll()
+        alphaValue = 0
+        orderOut(nil)
     }
 
     func hide() {
