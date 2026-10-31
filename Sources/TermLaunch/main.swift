@@ -354,6 +354,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         previousApp = nil
     }
 
+    @objc private func showAbout() { AboutWindowController.shared.show() }
+
     private func makeMainMenu() -> NSMenu {
         let main = NSMenu()
         func submenu(_ title: String) -> NSMenu {
@@ -370,7 +372,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             item.keyEquivalentModifierMask = mods
             item.target = target
         }
-        item(app, "About TermLaunch", #selector(NSApplication.orderFrontStandardAboutPanel(_:)), target: NSApp)
+        item(app, "About TermLaunch", #selector(showAbout), target: self)
         app.addItem(.separator())
         item(app, "Settings…", #selector(openConfig), ",", target: self)
         item(app, "Reload Config", #selector(reloadConfigAction), target: self)
