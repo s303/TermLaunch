@@ -27,6 +27,8 @@ final class SurfaceHandle {
 /// hop to the main thread.
 final class GhosttyApp {
     private(set) var app: ghostty_app_t?
+    /// The terminal's `background` from the user's Ghostty config; Window mode paints its frame with it.
+    private(set) var background: NSColor = .black
 
     init?() {
         Self.configureResources()
@@ -43,6 +45,10 @@ final class GhosttyApp {
         ghostty_config_load_default_files(config)
         ghostty_config_load_recursive_files(config)
         ghostty_config_finalize(config)
+        var bg = ghostty_config_color_s()
+        if ghostty_config_get(config, &bg, "background", 10) {
+            background = NSColor(srgbRed: CGFloat(bg.r) / 255, green: CGFloat(bg.g) / 255, blue: CGFloat(bg.b) / 255, alpha: 1)
+        }
 
         var runtime = ghostty_runtime_config_s()
         runtime.userdata = Unmanaged.passUnretained(self).toOpaque()

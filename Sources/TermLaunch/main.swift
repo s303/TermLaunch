@@ -112,6 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             panel.chordWindow = TimeInterval(cfg.chordWindowMs) / 1000
             panel.commandKeys = Set(cfg.commands.compactMap(\.key))
         }
+        if windowMode { NSApp.mainMenu = makeMainMenu() }
         hotKey = nil // unregisters the old one
         if let spec = KeySpec.parse(cfg.activation) {
             hotKey = HotKey(keyCode: spec.keyCode, modifiers: spec.modifiers) { [weak self] in
@@ -147,7 +148,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: Dropdown
 
-    private func handle(_ shortcut: DropdownPanel.TabShortcut) {
+    private func handle(_ shortcut: TabShortcut) {
         switch shortcut {
         case .new: content?.addShellTab()
         case .close: content?.closeActive()
@@ -237,8 +238,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func makeWindow() -> TermWindow {
-        let window = TermWindow()
+        let window = TermWindow(background: ghostty?.background ?? .black)
         window.onCloseRequested = { [weak self] in self?.leaveWindowMode() }
+        window.onTabShortcut = { [weak self] in self?.handle($0) }
         window.onVisibilityChanged = { [weak self] visible in
             guard let self, self.windowMode, !self.tempConsole else { return }
             self.content?.setDisplayed(visible)
@@ -266,8 +268,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         panel.hideImmediately()
         panel.contentView = NSView()
         window.contentView = content
+        content.barOnTop = true
         windowMode = true
         NSApp.setActivationPolicy(.regular)
+        NSApp.applicationIconImage = Self.dockIcon
         NSApp.mainMenu = makeMainMenu()
         if content.isEmpty { content.addShellTab() }
         NSApp.activate(ignoringOtherApps: true)
@@ -285,6 +289,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         termWindow?.ignoresMouseEvents = false
         termWindow?.contentView = NSView()
         termWindow?.close() // also drops a minimised window's Dock tile
+        content.barOnTop = false
         panel.contentView = content
         NSApp.mainMenu = nil
         NSApp.setActivationPolicy(.accessory)
@@ -301,6 +306,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSLog("TermLaunch: temporary console opened over %@", previousApp?.localizedName ?? "nothing")
         content.setDisplayed(false)
         window.contentView = NSView()
+        content.barOnTop = false
         panel.contentView = content
         // Keep the window in place, only invisible: ordering it out and back makes window
         // managers (AeroSpace) lose track of it and misplace focus.
@@ -327,6 +333,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         panel.hideImmediately()
         panel.contentView = NSView()
         window.contentView = content
+        content.barOnTop = true
         window.alphaValue = 1
         window.ignoresMouseEvents = false
         content.setDisplayed(!window.isMiniaturized)
@@ -351,25 +358,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let close = app.addItem(withTitle: "Close Window", action: #selector(closeWindowMode), keyEquivalent: "q")
         close.target = self
 
-        let tab = submenu("Tab")
-        func add(_ title: String, _ key: String, _ mods: NSEvent.ModifierFlags, _ shortcut: DropdownPanel.TabShortcut) {
+        let shell = submenu("Shell")
+        func add(to menu: NSMenu, _ title: String, _ key: String, _ mods: NSEvent.ModifierFlags, _ shortcut: TabShortcut) {
             let item = NSMenuItem(title: title, action: #selector(tabMenuItem(_:)), keyEquivalent: key)
             item.keyEquivalentModifierMask = mods
             item.target = self
             item.representedObject = TabShortcutBox(shortcut)
-            tab.addItem(item)
+            menu.addItem(item)
         }
-        add("New Tab", "t", .command, .new)
-        add("Close Tab", "w", .command, .close)
-        add("Next Tab", "]", [.command, .shift], .next)
-        add("Previous Tab", "[", [.command, .shift], .previous)
-        for i in 0..<9 { add("Tab \(i + 1)", String(i + 1), .command, .select(i)) }
+        add(to: shell, "New Tab", "t", .command, .new)
+        add(to: shell, "Close Tab", "w", .command, .close)
+
+        let window = submenu("Window")
+        add(to: window, "Show Previous Tab", "[", [.command, .shift], .previous)
+        add(to: window, "Show Next Tab", "]", [.command, .shift], .next)
+
+        if !config.commands.isEmpty {
+            let commands = submenu("Commands")
+            for binding in config.commands {
+                let item = NSMenuItem(title: binding.run, action: #selector(commandMenuItem(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = CommandBox(binding)
+                commands.addItem(item)
+            }
+        }
         return main
     }
 
+    private final class CommandBox {
+        let binding: CommandBinding
+        init(_ binding: CommandBinding) { self.binding = binding }
+    }
+
+    @objc private func commandMenuItem(_ sender: NSMenuItem) {
+        guard let box = sender.representedObject as? CommandBox else { return }
+        content?.openCommandTab(box.binding)
+    }
+
     private final class TabShortcutBox {
-        let shortcut: DropdownPanel.TabShortcut
-        init(_ shortcut: DropdownPanel.TabShortcut) { self.shortcut = shortcut }
+        let shortcut: TabShortcut
+        init(_ shortcut: TabShortcut) { self.shortcut = shortcut }
     }
 
     @objc private func tabMenuItem(_ sender: NSMenuItem) {
@@ -378,6 +406,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func closeWindowMode() { leaveWindowMode() }
+
+    /// The menu bar's `terminal` glyph on a terminal-coloured tile, for the Dock in Window mode.
+    private static let dockIcon: NSImage = {
+        let side: CGFloat = 512
+        return NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
+            let tile = rect.insetBy(dx: side * 0.09, dy: side * 0.09)
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: tile, xRadius: side * 0.18, yRadius: side * 0.18).fill()
+            let config = NSImage.SymbolConfiguration(pointSize: side * 0.42, weight: .regular)
+                .applying(.init(paletteColors: [.white]))
+            if let glyph = NSImage(systemSymbolName: "terminal", accessibilityDescription: nil)?.withSymbolConfiguration(config) {
+                let g = glyph.size
+                glyph.draw(in: NSRect(x: rect.midX - g.width / 2, y: rect.midY - g.height / 2, width: g.width, height: g.height))
+            }
+            return true
+        }
+    }()
 
     private func installStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)

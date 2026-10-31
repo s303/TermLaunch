@@ -5,8 +5,9 @@ import AppKit
 final class TermWindow: NSWindow, NSWindowDelegate {
     var onCloseRequested: (() -> Void)?
     var onVisibilityChanged: ((Bool) -> Void)?
+    var onTabShortcut: ((TabShortcut) -> Void)?
 
-    init() {
+    init(background: NSColor) {
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: 800, height: 500),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
@@ -15,8 +16,17 @@ final class TermWindow: NSWindow, NSWindowDelegate {
         )
         title = "TermLaunch"
         isReleasedWhenClosed = false
-        backgroundColor = .black
+        backgroundColor = background
+        titlebarAppearsTransparent = true
+        titleVisibility = .hidden
         delegate = self
+    }
+
+    // ⌘1–9 and the other Tab shortcuts work here without menu items, as in the Dropdown.
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        guard let shortcut = TabShortcut.from(event) else { return super.performKeyEquivalent(with: event) }
+        onTabShortcut?(shortcut)
+        return true
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {

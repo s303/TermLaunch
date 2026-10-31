@@ -41,32 +41,11 @@ final class DropdownPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 
-    /// kVK_ANSI_1 … kVK_ANSI_9, in digit order.
-    private static let digitKeyCodes = [18, 19, 20, 21, 23, 22, 26, 28, 25]
-
-    enum TabShortcut { case new, close, next, previous, select(Int) }
     var onTabShortcut: ((TabShortcut) -> Void)?
 
-    /// ⌘T new, ⌘W close, ⌘⇧[ / ⌘⇧] cycle, ⌘1–9 jump.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        guard flags.contains(.command), !flags.contains(.control), !flags.contains(.option),
-              let chars = event.charactersIgnoringModifiers else {
-            return super.performKeyEquivalent(with: event)
-        }
-        let shift = flags.contains(.shift)
-        // Digit keys by physical key code, so non-US layouts (digits behind shift) work.
-        if !shift, let slot = Self.digitKeyCodes.firstIndex(of: Int(event.keyCode)) {
-            onTabShortcut?(.select(slot))
-            return true
-        }
-        switch (chars, shift) {
-        case ("t", false): onTabShortcut?(.new)
-        case ("w", false): onTabShortcut?(.close)
-        case ("[", _), ("{", _): onTabShortcut?(.previous)
-        case ("]", _), ("}", _): onTabShortcut?(.next)
-        default: return super.performKeyEquivalent(with: event)
-        }
+        guard let shortcut = TabShortcut.from(event) else { return super.performKeyEquivalent(with: event) }
+        onTabShortcut?(shortcut)
         return true
     }
 

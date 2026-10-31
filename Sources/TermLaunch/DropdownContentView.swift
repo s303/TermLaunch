@@ -23,6 +23,9 @@ final class DropdownContentView: NSView {
     #if DEBUG
     var debugGrid: (columns: Int, rows: Int)? { active?.view.debugGrid }
     #endif
+    /// Window mode shows the tab bar above the terminal; the Dropdown keeps it below.
+    var barOnTop = false { didSet { if barOnTop != oldValue { needsLayout = true } } }
+
     var barHeight: CGFloat { bar.isHidden ? 0 : TabBarView.height }
 
     func cellMetrics() -> (cell: CGSize, padding: CGSize)? { active?.view.cellMetrics() }
@@ -168,8 +171,9 @@ final class DropdownContentView: NSView {
     override func layout() {
         super.layout()
         let barHeight = bar.isHidden ? 0 : TabBarView.height
-        bar.frame = NSRect(x: 0, y: 0, width: bounds.width, height: barHeight)
-        let area = NSRect(x: 0, y: barHeight, width: bounds.width, height: bounds.height - barHeight)
+        let barY = barOnTop ? bounds.height - barHeight : 0
+        bar.frame = NSRect(x: 0, y: barY, width: bounds.width, height: barHeight)
+        let area = NSRect(x: 0, y: barOnTop ? 0 : barHeight, width: bounds.width, height: bounds.height - barHeight)
         for tab in tabs { tab.view.frame = area }
     }
 }
