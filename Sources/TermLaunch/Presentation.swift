@@ -13,13 +13,15 @@ enum Presentation {
         case showConsole, hideConsole
         /// Window mode, Window active: open or focus the Tab in the Window.
         case useWindow
+        /// Window mode, Window active: the next Command key runs in the Window.
+        case windowChord
         case ignore
         case enterWindowMode, leaveWindowMode
     }
 
     static func activation(_ s: State) -> Action {
         if s.consoleShown { return .hideConsole }
-        if s.windowMode && s.windowIsKey { return .ignore }
+        if s.windowMode && s.windowIsKey { return .windowChord }
         return .showConsole
     }
 

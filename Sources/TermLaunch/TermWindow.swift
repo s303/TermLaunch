@@ -7,6 +7,49 @@ final class TermWindow: NSWindow, NSWindowDelegate {
     var onVisibilityChanged: ((Bool) -> Void)?
     var onTabShortcut: ((TabShortcut) -> Void)?
 
+    // Chord window: after the Activation key, a Command key runs its command in the Window.
+    // Any other key ends the window and is delivered to the terminal as usual.
+    var commandKeys: Set<String> = []
+    var chordWindow: TimeInterval = 0.3
+    var onCommandKey: ((String) -> Void)?
+    private var chordTimer: Timer?
+    private var swallowedKeyCodes = Set<UInt16>()
+
+    func beginChord() {
+        endChord()
+        guard !commandKeys.isEmpty, chordWindow > 0 else { return }
+        chordTimer = Timer.scheduledTimer(withTimeInterval: chordWindow, repeats: false) { [weak self] _ in
+            self?.chordTimer = nil
+        }
+    }
+
+    private func endChord() {
+        chordTimer?.invalidate()
+        chordTimer = nil
+    }
+
+    override func sendEvent(_ event: NSEvent) {
+        switch event.type {
+        case .keyDown where swallowedKeyCodes.contains(event.keyCode):
+            return
+        case .keyDown where chordTimer != nil:
+            endChord()
+            let blocking: NSEvent.ModifierFlags = [.command, .control, .option]
+            if event.modifierFlags.isDisjoint(with: blocking),
+               let key = KeySpec.name(forKeyCode: event.keyCode),
+               commandKeys.contains(key) {
+                swallowedKeyCodes.insert(event.keyCode)
+                onCommandKey?(key)
+                return
+            }
+        case .keyUp where swallowedKeyCodes.remove(event.keyCode) != nil:
+            return
+        default:
+            break
+        }
+        super.sendEvent(event)
+    }
+
     init(background: NSColor) {
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: 800, height: 500),

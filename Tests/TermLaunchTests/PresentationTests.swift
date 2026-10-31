@@ -11,7 +11,7 @@ final class PresentationTests: XCTestCase {
     }
 
     func testActivationInWindowMode() {
-        XCTAssertEqual(Presentation.activation(state(window: true, key: true)), .ignore)
+        XCTAssertEqual(Presentation.activation(state(window: true, key: true)), .windowChord)
         XCTAssertEqual(Presentation.activation(state(window: true)), .showConsole)
         XCTAssertEqual(Presentation.activation(state(window: true, console: true)), .hideConsole)
     }

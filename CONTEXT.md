@@ -38,10 +38,10 @@ _Avoid_: Detached, pop-out
 Toggles between the Dropdown and Window mode, keeping all Tabs. Closing the Window (red button, ⌘W on the last Tab, ⌘Q) also leaves Window mode and keeps the Tabs; the Activation key then shows the Dropdown. Minimising the Window stays in Window mode. Quitting is only in the menu-bar item.
 
 **Temporary console**:
-In Window mode, when the Window is not the key window (behind other apps or minimised), the Activation key or a Command hotkey shows the Dropdown with the same Tabs and hides the Window meanwhile. Dismissing it (same key, or losing focus) restores the Window to its previous frame, z-order and minimised state without taking focus. The Dock icon stays throughout. The Chord window applies only here, not to the Window.
+In Window mode, when the Window is not the key window (behind other apps or minimised), the Activation key or a Command hotkey shows the Dropdown with the same Tabs and hides the Window meanwhile. Dismissing it (same key, or losing focus) restores the Window to its previous frame, z-order and minimised state without taking focus. The Dock icon stays throughout. The Chord window also applies in the Window, started silently by the Activation key.
 
 **Window mode key rules**:
-- Activation key while the Window is key: ignored (swallowed).
+- Activation key while the Window is key: opens a Chord window in the Window with no Dropdown; a Command key within it runs its command in the Window, any other key goes to the terminal as usual.
 - Command hotkey while the Window is key: opens or focuses that Command Tab in the Window; pressing it again does nothing.
 - ⌘T, ⌘W, ⌘⇧[ / ⌘⇧], ⌘1–9 work through a minimal app menu with no Quit item (⌘Q is Close Window).
 - A Command Tab that finishes successfully closes only that Tab in the Window; the Window stays.

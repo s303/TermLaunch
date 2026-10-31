@@ -9,3 +9,4 @@ Sources/TermLaunch/Info.plist
 dist/
 _bmad/
 _bmad-output/
+.build/

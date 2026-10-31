@@ -112,6 +112,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             panel.chordWindow = TimeInterval(cfg.chordWindowMs) / 1000
             panel.commandKeys = Set(cfg.commands.compactMap(\.key))
         }
+        if let termWindow {
+            termWindow.chordWindow = TimeInterval(cfg.chordWindowMs) / 1000
+            termWindow.commandKeys = Set(cfg.commands.compactMap(\.key))
+        }
         if windowMode { NSApp.mainMenu = makeMainMenu() }
         hotKey = nil // unregisters the old one
         if let spec = KeySpec.parse(cfg.activation) {
@@ -222,6 +226,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .showConsole:
             content?.selectMainTab() // the Activation key always lands on the main Shell Tab
             showDropdown(startChord: true)
+        case .windowChord:
+            termWindow?.beginChord()
         default:
             break
         }
@@ -241,6 +247,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let window = TermWindow(background: ghostty?.background ?? .black)
         window.onCloseRequested = { [weak self] in self?.leaveWindowMode() }
         window.onTabShortcut = { [weak self] in self?.handle($0) }
+        window.onCommandKey = { [weak self] key in self?.runCommand(key: key) }
+        window.chordWindow = TimeInterval(config.chordWindowMs) / 1000
+        window.commandKeys = Set(config.commands.compactMap(\.key))
         window.onVisibilityChanged = { [weak self] visible in
             guard let self, self.windowMode, !self.tempConsole else { return }
             self.content?.setDisplayed(visible)
