@@ -7,6 +7,11 @@ struct CommandBinding: Equatable {
     let cwd: String?
     /// Global hotkey (KeySpec syntax) that shows the Dropdown and opens this command.
     var hotkey: String? = nil
+    /// Overrides the Commands menu label and pins the Tab title.
+    var name: String? = nil
+
+    /// Menu label and initial Tab title.
+    var displayName: String { name ?? run }
 
     /// Identity of the Command Tab; at most one Tab exists per id.
     var id: String {
@@ -102,7 +107,7 @@ struct Config: Equatable {
         if let activation = KeySpec.parse(cfg.activation) { seenHotkeys.insert(activation) }
         if let windowSpec { seenHotkeys.insert(windowSpec) }
         for (i, table) in (doc.arrays["command"] ?? []).enumerated() {
-            for k in table.keys.sorted() where !["key", "run", "cwd", "hotkey"].contains(k) {
+            for k in table.keys.sorted() where !["key", "run", "cwd", "hotkey", "name"].contains(k) {
                 warnings.append("[[command]] #\(i + 1): unknown key \"\(k)\"")
             }
             guard let run = table["run"]?.string, !run.isEmpty else {
@@ -138,10 +143,18 @@ struct Config: Equatable {
                 warnings.append("duplicate hotkey \"\(hotkey ?? "")\" (also the activation key, the window hotkey or another command)")
                 continue
             }
+            var name: String?
+            if let value = table["name"] {
+                guard let n = value.string, !n.isEmpty else {
+                    warnings.append("[[command]] #\(i + 1): name must be a non-empty string")
+                    continue
+                }
+                name = n
+            }
             // Only accepted commands claim their key and hotkey.
             if let key { seen.insert(key) }
             if let spec { seenHotkeys.insert(spec) }
-            cfg.commands.append(CommandBinding(key: key, run: run, cwd: table["cwd"]?.string, hotkey: hotkey))
+            cfg.commands.append(CommandBinding(key: key, run: run, cwd: table["cwd"]?.string, hotkey: hotkey, name: name))
         }
         return (cfg, warnings)
     }
@@ -180,6 +193,7 @@ struct Config: Equatable {
     # hotkey = "f2"
     # run = "lazygit"
     # cwd = "~/src"
+    # name = "Git"   # optional label for the Commands menu and the Tab title
 
     """
 }

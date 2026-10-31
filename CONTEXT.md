@@ -43,5 +43,6 @@ In Window mode, when the Window is not the key window (behind other apps or mini
 **Window mode key rules**:
 - Activation key while the Window is key: opens a Chord window in the Window with no Dropdown; a Command key within it runs its command in the Window, any other key goes to the terminal as usual.
 - Command hotkey while the Window is key: opens or focuses that Command Tab in the Window; pressing it again does nothing.
-- ⌘T, ⌘W, ⌘⇧[ / ⌘⇧], ⌘1–9 work through a minimal app menu with no Quit item (⌘Q is Close Window).
+- ⌘T, ⌘W, ⌘⇧[ / ⌘⇧], ⌘1–9 work through the app menu bar. ⌘Q is "Close Window" and leaves Window mode; "Quit TermLaunch" is listed beside it without a shortcut. Settings… (⌘,) opens the config file in the default app, like the menu-bar item. The Commands menu shows each command's `hotkey` as its key equivalent (display only, the global hotkey fires) or "Activation key then key" for chord-only commands.
+- A command's optional `name` replaces its label in the Commands menu and pins its Tab title (the terminal's own title updates are ignored).
 - A Command Tab that finishes successfully closes only that Tab in the Window; the Window stays.

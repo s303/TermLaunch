@@ -35,4 +35,15 @@ final class KeySpecTests: XCTestCase {
             XCTAssertEqual(KeySpec.name(forKeyCode: UInt16(code ?? -1)), name)
         }
     }
+
+    func testMenuDisplay() throws {
+        let f2 = try XCTUnwrap(KeySpec.parse("f2"))
+        XCTAssertEqual(f2.displayString, "F2")
+        XCTAssertEqual(f2.menuKeyEquivalent, String(Character(UnicodeScalar(NSF2FunctionKey)!)))
+        let g = try XCTUnwrap(KeySpec.parse("cmd+shift+g"))
+        XCTAssertEqual(g.displayString, "⇧⌘G")
+        XCTAssertEqual(g.menuKeyEquivalent, "g")
+        XCTAssertEqual(g.nsModifiers, [.command, .shift])
+        XCTAssertEqual(KeySpec.parse("ctrl+`")?.displayString, "⌃`")
+    }
 }

@@ -364,8 +364,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return menu
         }
         let app = submenu("TermLaunch")
-        let close = app.addItem(withTitle: "Close Window", action: #selector(closeWindowMode), keyEquivalent: "q")
-        close.target = self
+        func item(_ menu: NSMenu, _ title: String, _ action: Selector, _ key: String = "",
+                  _ mods: NSEvent.ModifierFlags = .command, target: AnyObject? = nil) {
+            let item = menu.addItem(withTitle: title, action: action, keyEquivalent: key)
+            item.keyEquivalentModifierMask = mods
+            item.target = target
+        }
+        item(app, "About TermLaunch", #selector(NSApplication.orderFrontStandardAboutPanel(_:)), target: NSApp)
+        app.addItem(.separator())
+        item(app, "Settings…", #selector(openConfig), ",", target: self)
+        item(app, "Reload Config", #selector(reloadConfigAction), target: self)
+        app.addItem(.separator())
+        let services = NSMenu(title: "Services")
+        app.addItem(withTitle: "Services", action: nil, keyEquivalent: "").submenu = services
+        NSApp.servicesMenu = services
+        app.addItem(.separator())
+        item(app, "Hide TermLaunch", #selector(NSApplication.hide(_:)), "h", target: NSApp)
+        item(app, "Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option], target: NSApp)
+        item(app, "Show All", #selector(NSApplication.unhideAllApplications(_:)), target: NSApp)
+        app.addItem(.separator())
+        item(app, "Close Window", #selector(closeWindowMode), "q", target: self)
+        item(app, "Quit TermLaunch", #selector(NSApplication.terminate(_:)), target: NSApp)
 
         let shell = submenu("Shell")
         func add(to menu: NSMenu, _ title: String, _ key: String, _ mods: NSEvent.ModifierFlags, _ shortcut: TabShortcut) {
@@ -384,10 +403,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         if !config.commands.isEmpty {
             let commands = submenu("Commands")
+            let activation = KeySpec.parse(config.activation)?.displayString ?? config.activation
             for binding in config.commands {
-                let item = NSMenuItem(title: binding.run, action: #selector(commandMenuItem(_:)), keyEquivalent: "")
+                let item = NSMenuItem(title: binding.displayName, action: #selector(commandMenuItem(_:)), keyEquivalent: "")
                 item.target = self
                 item.representedObject = CommandBox(binding)
+                if let spec = binding.hotkey.flatMap(KeySpec.parse), let key = spec.menuKeyEquivalent {
+                    // Display only: the global hotkey is consumed before the menu sees the key.
+                    item.keyEquivalent = key
+                    item.keyEquivalentModifierMask = spec.nsModifiers
+                } else if binding.hotkey == nil, let key = binding.key, #available(macOS 14.4, *) {
+                    item.subtitle = "\(activation) then \(key)"
+                }
                 commands.addItem(item)
             }
         }

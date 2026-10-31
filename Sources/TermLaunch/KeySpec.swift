@@ -1,3 +1,4 @@
+import AppKit
 import Carbon.HIToolbox
 
 /// A parsed hotkey such as "ctrl+`" or "cmd+shift+space".
@@ -42,5 +43,49 @@ struct KeySpec: Hashable {
         }
         guard let key else { return nil }
         return KeySpec(keyCode: key, modifiers: mods)
+    }
+
+    // MARK: Menu display
+
+    private static let namesForDisplay: [Int: String] = Dictionary(
+        keys.map { ($0.value, $0.key) }, uniquingKeysWith: { a, b in a.count >= b.count ? a : b })
+
+    var nsModifiers: NSEvent.ModifierFlags {
+        var m: NSEvent.ModifierFlags = []
+        if modifiers & controlKey != 0 { m.insert(.control) }
+        if modifiers & optionKey != 0 { m.insert(.option) }
+        if modifiers & shiftKey != 0 { m.insert(.shift) }
+        if modifiers & cmdKey != 0 { m.insert(.command) }
+        return m
+    }
+
+    /// The `keyEquivalent` string an NSMenuItem needs for this key.
+    var menuKeyEquivalent: String? {
+        let fkeys: [Int: Int] = [
+            122: NSF1FunctionKey, 120: NSF2FunctionKey, 99: NSF3FunctionKey, 118: NSF4FunctionKey,
+            96: NSF5FunctionKey, 97: NSF6FunctionKey, 98: NSF7FunctionKey, 100: NSF8FunctionKey,
+            101: NSF9FunctionKey, 109: NSF10FunctionKey, 103: NSF11FunctionKey, 111: NSF12FunctionKey,
+        ]
+        if let f = fkeys[keyCode], let scalar = UnicodeScalar(f) { return String(Character(scalar)) }
+        switch keyCode {
+        case 36: return "\r"
+        case 48: return "\t"
+        case 49: return " "
+        case 51: return "\u{8}"
+        case 53: return "\u{1b}"
+        default: return Self.namesForDisplay[keyCode].flatMap { $0.count == 1 ? $0 : nil }
+        }
+    }
+
+    /// Glyph form such as "⌃`" or "⌘⇧Space".
+    var displayString: String {
+        var s = ""
+        if modifiers & controlKey != 0 { s += "⌃" }
+        if modifiers & optionKey != 0 { s += "⌥" }
+        if modifiers & shiftKey != 0 { s += "⇧" }
+        if modifiers & cmdKey != 0 { s += "⌘" }
+        let name = Self.namesForDisplay[keyCode] ?? "?"
+        s += name.count == 1 ? name.uppercased() : name.capitalized
+        return s
     }
 }

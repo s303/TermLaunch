@@ -67,7 +67,8 @@ final class DropdownContentView: NSView {
         let cwd = binding.cwd.map { ($0 as NSString).expandingTildeInPath } ?? NSHomeDirectory()
         add(
             kind: .command(id: binding.id),
-            title: binding.run,
+            title: binding.displayName,
+            pinnedTitle: binding.name != nil,
             command: ShellCommand.wrapper(run: binding.run, exitFile: exitFile),
             workingDirectory: cwd,
             exitFile: exitFile
@@ -76,7 +77,7 @@ final class DropdownContentView: NSView {
 
     @discardableResult
     private func add(
-        kind: Tab.Kind, title: String, command: String?,
+        kind: Tab.Kind, title: String, pinnedTitle: Bool = false, command: String?,
         workingDirectory: String? = nil, exitFile: String? = nil
     ) -> Tab {
         let isCommand = command != nil
@@ -94,7 +95,7 @@ final class DropdownContentView: NSView {
         }
         view.onCellSize = { [weak self] in self?.onMetricsChanged?() }
         view.onTitle = { [weak self, weak tab] title in
-            guard let self, let tab, !title.isEmpty else { return }
+            guard let self, let tab, !title.isEmpty, !pinnedTitle else { return }
             tab.title = title
             self.refreshBar()
         }

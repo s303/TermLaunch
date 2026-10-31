@@ -95,6 +95,22 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(result.warnings.count, 4) // duplicate, multi-char key, missing run, unknown key
     }
 
+    func testCommandName() throws {
+        let result = try load("""
+        [[command]]
+        key = "g"
+        run = "lazygit"
+        name = "Git"
+        [[command]]
+        key = "h"
+        run = "htop"
+        name = ""
+        """)
+        let c = try XCTUnwrap(result.config)
+        XCTAssertEqual(c.commands.map(\.displayName), ["Git"])
+        XCTAssertEqual(result.warnings.count, 1)
+    }
+
     func testCommandHotkeys() throws {
         let result = try load("""
         activation = "ctrl+`"
