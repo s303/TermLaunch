@@ -28,7 +28,7 @@ ARCHS_FOUND="$(lipo -archs "$BUILT/Contents/MacOS/$APP_NAME")"
 [ "$ARCHS_FOUND" = "arm64" ] || { echo "error: expected arm64 only, got: $ARCHS_FOUND" >&2; exit 1; }
 
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
-  "$BUILT/Contents/Info.plist" 2>/dev/null || echo 1.0)"
+  "$BUILT/Contents/Info.plist" 2>/dev/null || echo 0.1)"
 ZIP="$DIST/$APP_NAME-$VERSION-arm64.zip"
 
 mkdir -p "$DIST"
