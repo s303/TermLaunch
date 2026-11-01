@@ -194,4 +194,29 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(cmdClash.config?.commands, [])
         XCTAssertEqual(cmdClash.warnings.count, 1)
     }
+
+    func testTabBarOverrides() throws {
+        let ok = try load("""
+        [tabbar]
+        separator = "|"
+        background = "#11111b"
+        active_background = "palette:5"
+        """)
+        XCTAssertEqual(ok.warnings, [])
+        XCTAssertEqual(ok.config?.tabBar.separator, "|")
+        XCTAssertEqual(ok.config?.tabBar.background, .rgb(0x11, 0x11, 0x1b))
+        XCTAssertEqual(ok.config?.tabBar.activeBackground, .palette(5))
+        XCTAssertNil(ok.config?.tabBar.number)
+
+        let bad = try load("""
+        [tabbar]
+        number = "green"
+        bogus = 1
+        """)
+        XCTAssertNil(bad.config?.tabBar.number)
+        XCTAssertEqual(bad.config?.tabBar.separator, "┊")
+        XCTAssertEqual(bad.warnings.count, 2)
+
+        XCTAssertEqual(try load("[tabbar]\nseparator = \"\"\n").config?.tabBar.separator, "")
+    }
 }

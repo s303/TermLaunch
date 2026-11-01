@@ -26,7 +26,15 @@ final class DropdownContentView: NSView {
     /// Window mode shows the tab bar above the terminal; the Dropdown keeps it below.
     var barOnTop = false { didSet { if barOnTop != oldValue { needsLayout = true } } }
 
-    var barHeight: CGFloat { bar.isHidden ? 0 : TabBarView.height }
+    /// One terminal row tall, so the bar reads as a line of the terminal.
+    var barHeight: CGFloat {
+        bar.isHidden ? 0 : (cellMetrics()?.cell.height ?? 20).rounded()
+    }
+
+    var tabBarStyle: TabBarStyle {
+        get { bar.style }
+        set { bar.style = newValue }
+    }
 
     func cellMetrics() -> (cell: CGSize, padding: CGSize)? { active?.view.cellMetrics() }
     func isCommandTabActive(_ id: String) -> Bool { active?.kind == .command(id: id) }
@@ -37,7 +45,9 @@ final class DropdownContentView: NSView {
         super.init(frame: .zero)
         autoresizingMask = [.width, .height]
         addSubview(bar)
+        bar.theme = ghostty.theme
         bar.onSelect = { [weak self] in self?.select($0) }
+        bar.onMove = { [weak self] in self?.moveTab(from: $0, to: $1) }
     }
 
     required init?(coder: NSCoder) { fatalError("not supported") }
@@ -114,6 +124,15 @@ final class DropdownContentView: NSView {
         if displayed { window?.makeFirstResponder(tabs[index].view) }
     }
 
+    /// Drag-reorder: moves a Tab, keeping the same Tab active. Numbers and ⌘1–9 follow the new order.
+    private func moveTab(from: Int, to: Int) {
+        guard tabs.indices.contains(from), tabs.indices.contains(to), from != to else { return }
+        let current = active
+        tabs.insert(tabs.remove(at: from), at: to)
+        activeIndex = current.flatMap { c in tabs.firstIndex { $0 === c } } ?? activeIndex
+        refreshBar()
+    }
+
     private func applyVisibility() {
         for (i, tab) in tabs.enumerated() {
             let isActive = i == activeIndex
@@ -171,7 +190,7 @@ final class DropdownContentView: NSView {
 
     override func layout() {
         super.layout()
-        let barHeight = bar.isHidden ? 0 : TabBarView.height
+        let barHeight = self.barHeight
         let barY = barOnTop ? bounds.height - barHeight : 0
         bar.frame = NSRect(x: 0, y: barY, width: bounds.width, height: barHeight)
         let area = NSRect(x: 0, y: barOnTop ? 0 : barHeight, width: bounds.width, height: bounds.height - barHeight)

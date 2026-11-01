@@ -29,6 +29,8 @@ final class GhosttyApp {
     private(set) var app: ghostty_app_t?
     /// The terminal's `background` from the user's Ghostty config; Window mode paints its frame with it.
     private(set) var background: NSColor = .black
+    /// Colors and font from the user's Ghostty config; the tab bar derives its look from these.
+    private(set) var theme = TerminalTheme()
 
     init?() {
         Self.configureResources()
@@ -49,6 +51,7 @@ final class GhosttyApp {
         if ghostty_config_get(config, &bg, "background", 10) {
             background = NSColor(srgbRed: CGFloat(bg.r) / 255, green: CGFloat(bg.g) / 255, blue: CGFloat(bg.b) / 255, alpha: 1)
         }
+        theme = TerminalTheme(config: config, background: background)
 
         var runtime = ghostty_runtime_config_s()
         runtime.userdata = Unmanaged.passUnretained(self).toOpaque()
@@ -202,5 +205,59 @@ final class GhosttyApp {
         DropdownPanel.suppressHideOnResign = true
         defer { DropdownPanel.suppressHideOnResign = false }
         return alert.runModal() == .alertFirstButtonReturn
+    }
+}
+
+/// The slice of the Ghostty config the tab bar needs, read once at launch.
+struct TerminalTheme {
+    var background: NSColor = .black
+    var foreground: NSColor = .white
+    /// The 256-color palette; out-of-range slots fall back to foreground.
+    var palette: [NSColor] = []
+    var fontFamily: String?
+    var fontSize: CGFloat = 13
+
+    init() {}
+
+    init(config: ghostty_config_t, background: NSColor) {
+        self.background = background
+        var fg = ghostty_config_color_s()
+        if ghostty_config_get(config, &fg, "foreground", 10) { foreground = Self.color(fg) }
+        var pal = ghostty_config_palette_s()
+        if ghostty_config_get(config, &pal, "palette", 7) {
+            withUnsafeBytes(of: &pal.colors) { raw in
+                let colors = raw.bindMemory(to: ghostty_config_color_s.self)
+                palette = (0..<256).map { Self.color(colors[$0]) }
+            }
+        }
+        var size: Float = 0
+        if ghostty_config_get(config, &size, "font-size", 9), size > 0 { fontSize = CGFloat(size) }
+        fontFamily = Self.firstFontFamily()
+    }
+
+    func color(_ index: Int) -> NSColor { palette.indices.contains(index) ? palette[index] : foreground }
+
+    private static func color(_ c: ghostty_config_color_s) -> NSColor {
+        NSColor(srgbRed: CGFloat(c.r) / 255, green: CGFloat(c.g) / 255, blue: CGFloat(c.b) / 255, alpha: 1)
+    }
+
+    /// `font-family` isn't exposed through Ghostty's C API, so read the first one from the config files.
+    private static func firstFontFamily() -> String? {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let files = [
+            home.appendingPathComponent(".config/ghostty/config"),
+            home.appendingPathComponent("Library/Application Support/com.mitchellh.ghostty/config"),
+        ]
+        var found: String?
+        for file in files {
+            guard let text = try? String(contentsOf: file, encoding: .utf8) else { continue }
+            for line in text.split(separator: "\n") {
+                let parts = line.split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+                guard parts.count == 2, parts[0] == "font-family" else { continue }
+                let value = parts[1].trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+                if !value.isEmpty { found = value }
+            }
+        }
+        return found
     }
 }

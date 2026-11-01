@@ -25,6 +25,33 @@ enum Edge: String {
     case top, bottom, left, right
 }
 
+/// A color from `[tabbar]`: literal `#rrggbb` or a slot of the Ghostty palette (`palette:N`).
+enum ColorSpec: Equatable {
+    case rgb(UInt8, UInt8, UInt8)
+    case palette(Int)
+
+    static func parse(_ text: String) -> ColorSpec? {
+        if text.hasPrefix("palette:") {
+            guard let n = Int(text.dropFirst(8)), (0...255).contains(n) else { return nil }
+            return .palette(n)
+        }
+        guard text.hasPrefix("#"), text.count == 7, let v = UInt32(text.dropFirst(), radix: 16) else { return nil }
+        return .rgb(UInt8(v >> 16 & 0xff), UInt8(v >> 8 & 0xff), UInt8(v & 0xff))
+    }
+}
+
+/// Optional `[tabbar]` overrides; nil means derive from the Ghostty theme.
+struct TabBarStyle: Equatable {
+    var separator = "┊"
+    var background: ColorSpec?
+    var activeBackground: ColorSpec?
+    var activeForeground: ColorSpec?
+    var number: ColorSpec?
+    var foreground: ColorSpec?
+
+    static let colorKeys = ["background", "active_background", "active_foreground", "number", "foreground"]
+}
+
 /// App-level settings from ~/.config/termlaunch/config.toml. Terminal
 /// appearance comes from the user's Ghostty config, not from here.
 struct Config: Equatable {
@@ -37,6 +64,7 @@ struct Config: Equatable {
     var rows = 30
     var edge = Edge.top
     var commands: [CommandBinding] = []
+    var tabBar = TabBarStyle()
 
     static var path: URL {
         if let override = ProcessInfo.processInfo.environment["TERMLAUNCH_CONFIG"] {
@@ -84,7 +112,29 @@ struct Config: Equatable {
         }
         let known: Set<String> = ["activation", "window_hotkey", "chord_window_ms", "fade_ms", "columns", "rows", "edge", "size"]
         for key in doc.root.keys.sorted() where !known.contains(key) { warnings.append("unknown key \"\(key)\"") }
-        for name in doc.tables.keys.sorted() { warnings.append("unknown table [\(name)]") }
+        for name in doc.tables.keys.sorted() where name != "tabbar" { warnings.append("unknown table [\(name)]") }
+        if let table = doc.tables["tabbar"] {
+            for k in table.keys.sorted() where k != "separator" && !TabBarStyle.colorKeys.contains(k) {
+                warnings.append("[tabbar]: unknown key \"\(k)\"")
+            }
+            if let value = table["separator"] {
+                if let v = value.string { cfg.tabBar.separator = v } else { warnings.append("[tabbar]: separator must be a string") }
+            }
+            for k in TabBarStyle.colorKeys {
+                guard let value = table[k] else { continue }
+                guard let v = value.string, let spec = ColorSpec.parse(v) else {
+                    warnings.append("[tabbar]: \(k) must be \"#rrggbb\" or \"palette:N\"")
+                    continue
+                }
+                switch k {
+                case "background": cfg.tabBar.background = spec
+                case "active_background": cfg.tabBar.activeBackground = spec
+                case "active_foreground": cfg.tabBar.activeForeground = spec
+                case "number": cfg.tabBar.number = spec
+                default: cfg.tabBar.foreground = spec
+                }
+            }
+        }
         for name in doc.arrays.keys.sorted() where name != "command" { warnings.append("unknown table [[\(name)]]") }
 
         func int(_ key: String, _ range: ClosedRange<Int>, _ apply: (Int) -> Void) {
@@ -181,6 +231,16 @@ struct Config: Equatable {
     columns = 120
     rows = 30
     edge = "top"
+
+    # Tab bar. Colors and font come from your Ghostty theme; every key here is
+    # optional. Colors are "#rrggbb" or "palette:N" (a Ghostty palette slot).
+    # [tabbar]
+    # separator = "┊"
+    # background = "palette:0"
+    # active_background = "palette:5"
+    # active_foreground = "#1e1e2e"
+    # number = "palette:2"
+    # foreground = "#cdd6f4"
 
     # Commands. Each runs in its own Tab through your login shell; the Tab
     # closes (and the Dropdown hides) on exit 0, otherwise it holds the output.

@@ -116,6 +116,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             termWindow.chordWindow = TimeInterval(cfg.chordWindowMs) / 1000
             termWindow.commandKeys = Set(cfg.commands.compactMap(\.key))
         }
+        content?.tabBarStyle = cfg.tabBar
         if windowMode { NSApp.mainMenu = makeMainMenu() }
         hotKey = nil // unregisters the old one
         if let spec = KeySpec.parse(cfg.activation) {
