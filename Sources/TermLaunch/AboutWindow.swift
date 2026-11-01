@@ -40,10 +40,17 @@ final class AboutWindowController: NSWindowController, NSWindowDelegate {
         }
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
         let green = NSColor(calibratedRed: 0.35, green: 1, blue: 0.45, alpha: 1)
+        let licenseLink = ClickableLabel(string: "Third-party licenses (THIRD_PARTY_LICENSES.md)") {
+            guard let url = Bundle.main.url(forResource: "THIRD_PARTY_LICENSES", withExtension: "md") else { return }
+            NSWorkspace.shared.open(url)
+        }
         let stack = NSStackView(views: [
             demo,
             label("TermLaunch", size: 20, weight: .bold, color: .white),
             label("vibecoded by Mik", size: 13, weight: .regular, color: green),
+            label("Terminal engine: Ghostty (MIT)\n\u{00A9} 2024 Mitchell Hashimoto and Ghostty contributors",
+                  size: 10, weight: .regular, color: NSColor(white: 0.8, alpha: 1)),
+            licenseLink,
             label("v\(version)", size: 10, weight: .regular,
                   color: NSColor(white: 0.5, alpha: 1)),
         ])
@@ -55,6 +62,29 @@ final class AboutWindowController: NSWindowController, NSWindowDelegate {
         demo.heightAnchor.constraint(equalToConstant: 240).isActive = true
         return stack
     }
+}
+
+private final class ClickableLabel: NSTextField {
+    private let onClick: () -> Void
+
+    init(string: String, onClick: @escaping () -> Void) {
+        self.onClick = onClick
+        super.init(frame: .zero)
+        isEditable = false
+        isBordered = false
+        drawsBackground = false
+        alignment = .center
+        attributedStringValue = NSAttributedString(string: string, attributes: [
+            .font: NSFont.monospacedSystemFont(ofSize: 10, weight: .regular),
+            .foregroundColor: NSColor(calibratedRed: 0.5, green: 0.8, blue: 1, alpha: 1),
+            .underlineStyle: NSUnderlineStyle.single.rawValue,
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func mouseDown(with event: NSEvent) { onClick() }
+    override func resetCursorRects() { addCursorRect(bounds, cursor: .pointingHand) }
 }
 
 private final class DemoView: NSView {
