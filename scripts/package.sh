@@ -7,6 +7,16 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP_NAME="TermLaunch"
 DIST="$ROOT/dist"
 
+# Don't leave build/*.app registered with Launch Services (extra apps in Launchpad/Spotlight).
+LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+cleanup() {
+  for app in "$ROOT"/build/Build/Products/*/"$APP_NAME.app"; do
+    [ -d "$app" ] && "$LSREGISTER" -u "$app" 2>/dev/null || true
+  done
+  rm -rf "$ROOT/build"
+}
+trap cleanup EXIT
+
 # Full Xcode is needed; use it even when xcode-select points at the CLT.
 if ! xcodebuild -version >/dev/null 2>&1 && [ -d /Applications/Xcode.app ]; then
   export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
