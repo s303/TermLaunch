@@ -7,8 +7,8 @@ final class TOMLTests: XCTestCase {
     }
 
     func testArrayOfTablesKeepsOrder() throws {
-        let doc = try TOML.parse("[[command]]\nkey = \"a\"\n[[command]]\nkey = \"b\"\n")
-        XCTAssertEqual(doc.arrays["command"]?.compactMap { $0["key"]?.string }, ["a", "b"])
+        let doc = try TOML.parse("[[command]]\nchord = \"a\"\n[[command]]\nchord = \"b\"\n")
+        XCTAssertEqual(doc.arrays["command"]?.compactMap { $0["chord"]?.string }, ["a", "b"])
     }
 
     func testScalarTypes() throws {

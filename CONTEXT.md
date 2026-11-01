@@ -31,7 +31,7 @@ A Tab running the command bound to a Command key. There is at most one per Comma
 A Tab running the default shell. It is what appears when the Dropdown is shown without a Command key. There can be many. A Shell Tab closes when its shell exits; if it was the last Tab, the Dropdown hides and a fresh Shell Tab is created on the next show.
 
 **Window mode**:
-TermLaunch can also run as a normal window, entered and left by the Window hotkey (`window_hotkey` in the config, no default). The Tabs are the same Tabs and sessions as in the Dropdown, reparented between the two. While in Window mode the app has a Dock icon and appears in ⌘Tab; leaving Window mode removes both. The Window is freely resizable, starts at the Dropdown's grid size centred on the screen, and its frame is remembered for the app session.
+TermLaunch can also run as a normal window, entered and left by the Window hotkey (`window` under `[hotkeys]` in the config, no default). The Tabs are the same Tabs and sessions as in the Dropdown, reparented between the two. While in Window mode the app has a Dock icon and appears in ⌘Tab; leaving Window mode removes both. The Window is freely resizable, starts at the Dropdown's grid size centred on the screen, and its frame is remembered for the app session.
 _Avoid_: Detached, pop-out
 
 **Window hotkey**:

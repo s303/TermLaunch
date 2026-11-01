@@ -32,8 +32,10 @@ final class ConfigTests: XCTestCase {
 
     func testValidValuesApply() throws {
         let result = try load("""
-        activation = "cmd+space"
-        chord_window_ms = 500
+        [hotkeys]
+        dropdown = "cmd+space"
+        [dropdown]
+        chord_timeout_ms = 500
         fade_ms = 0
         columns = 80
         rows = 20
@@ -51,11 +53,13 @@ final class ConfigTests: XCTestCase {
 
     func testBadValuesFallBackWithWarnings() throws {
         let result = try load("""
-        activation = "a+b"
+        [hotkeys]
+        dropdown = "a+b"
+        [dropdown]
         columns = 5
         rows = "tall"
         fade_ms = -1
-        chord_window_ms = 1e30
+        chord_timeout_ms = 1e30
         edge = "middle"
         """)
         XCTAssertEqual(result.config, Config())
@@ -63,27 +67,27 @@ final class ConfigTests: XCTestCase {
     }
 
     func testUnknownKeysWarn() throws {
-        let result = try load("chord_window = 1\n[extra]\nx = 1\n")
+        let result = try load("stray = 1\n[extra]\nx = 1\n[dropdown]\nsize = 1\n")
         XCTAssertEqual(result.config, Config())
-        XCTAssertEqual(result.warnings.count, 2)
+        XCTAssertEqual(result.warnings.count, 3)
     }
 
     func testCommandBindings() throws {
         let result = try load("""
         [[command]]
-        key = "G"
+        chord = "G"
         run = "lazygit"
         cwd = "~/src"
         [[command]]
-        key = "g"
+        chord = "g"
         run = "dup"
         [[command]]
-        key = "gg"
+        chord = "gg"
         run = "long"
         [[command]]
-        key = "x"
+        chord = "x"
         [[command]]
-        key = "y"
+        chord = "y"
         run = "ok"
         cmd = "typo"
         """)
@@ -98,11 +102,11 @@ final class ConfigTests: XCTestCase {
     func testCommandName() throws {
         let result = try load("""
         [[command]]
-        key = "g"
+        chord = "g"
         run = "lazygit"
         name = "Git"
         [[command]]
-        key = "h"
+        chord = "h"
         run = "htop"
         name = ""
         """)
@@ -113,22 +117,23 @@ final class ConfigTests: XCTestCase {
 
     func testCommandHotkeys() throws {
         let result = try load("""
-        activation = "ctrl+`"
+        [hotkeys]
+        dropdown = "ctrl+`"
         [[command]]
-        hotkey = "F2"
+        hotchord = "F2"
         run = "o"
         [[command]]
-        key = "g"
-        hotkey = "cmd+shift+g"
+        chord = "g"
+        hotchord = "cmd+shift+g"
         run = "lazygit"
         [[command]]
-        hotkey = "f2"
+        hotchord = "f2"
         run = "dup"
         [[command]]
-        hotkey = "ctrl+`"
+        hotchord = "ctrl+`"
         run = "clash"
         [[command]]
-        hotkey = "bogus"
+        hotchord = "bogus"
         run = "bad"
         [[command]]
         run = "nokeys"
@@ -145,18 +150,18 @@ final class ConfigTests: XCTestCase {
     func testRejectedCommandDoesNotClaimItsKey() throws {
         let result = try load("""
         [[command]]
-        hotkey = "f2"
+        hotchord = "f2"
         run = "a"
         [[command]]
-        key = "g"
-        hotkey = "f2"
+        chord = "g"
+        hotchord = "f2"
         run = "dup hotkey"
         [[command]]
-        key = "g"
+        chord = "g"
         run = "reuses key"
         [[command]]
-        key = "h"
-        hotkey = "h"
+        chord = "h"
+        hotchord = "h"
         run = "ids differ"
         """)
         let c = try XCTUnwrap(result.config)
@@ -166,28 +171,28 @@ final class ConfigTests: XCTestCase {
     }
 
     func testWindowHotkey() throws {
-        let ok = try load("window_hotkey = \"cmd+shift+space\"\n")
+        let ok = try load("[hotkeys]\nwindow = \"cmd+shift+space\"\n")
         XCTAssertEqual(ok.warnings, [])
         XCTAssertEqual(ok.config?.windowHotkey, "cmd+shift+space")
 
-        let bad = try load("window_hotkey = \"bogus\"\n")
+        let bad = try load("[hotkeys]\nwindow = \"bogus\"\n")
         XCTAssertEqual(bad.config, Config())
         XCTAssertEqual(bad.warnings.count, 1)
 
         let clash = try load("""
         activation = "f1"
-        window_hotkey = "F1"
+        window_hotchord = "F1"
         [[command]]
-        hotkey = "f3"
+        hotchord = "f3"
         run = "a"
         """)
         XCTAssertNil(clash.config?.windowHotkey)
         XCTAssertEqual(clash.warnings.count, 1)
 
         let cmdClash = try load("""
-        window_hotkey = "f4"
+        window_hotchord = "f4"
         [[command]]
-        hotkey = "f4"
+        hotchord = "f4"
         run = "a"
         """)
         XCTAssertEqual(cmdClash.config?.windowHotkey, "f4")

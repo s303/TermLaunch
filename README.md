@@ -11,7 +11,7 @@ scripts/setup.sh   # builds GhosttyKit (pinned), generates TermLaunch.xcodeproj
 xcodebuild -project TermLaunch.xcodeproj -scheme TermLaunch build
 ```
 
-Default hotkey: Ctrl+` (`activation` in the config).
+Default hotkey: Ctrl+` (`dropdown` under `[hotkeys]` in the config).
 
 ## Install
 
@@ -25,7 +25,7 @@ The installed copy turns on launch at login the first time it starts (toggle in 
 
 ## Config
 
-`~/.config/termlaunch/config.toml` (created on first run, reloaded automatically; menu-bar item has Open/Reload). Holds the activation hotkey, optional `window_hotkey` (toggle normal window mode), chord window, fade, size, edge and `[[command]]` bindings (each with optional `name` for its menu label and Tab title). Terminal appearance comes from your Ghostty config.
+`~/.config/termlaunch/config.toml` (created on first run, reloaded automatically; menu-bar item has Open/Reload). Tables: `[hotkeys]` (`dropdown`, optional `window` to toggle normal window mode), `[dropdown]` (`columns`, `rows`, `edge`, `fade_ms`, `chord_timeout_ms`), optional `[tabbar]`, and `[[command]]` bindings (`chord` and/or `hotkey`, `run`, optional `cwd` and `name` for its menu label and Tab title). Terminal appearance comes from your Ghostty config.
 
 ## Licenses
 

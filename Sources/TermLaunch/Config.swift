@@ -96,27 +96,37 @@ struct Config: Equatable {
         }
 
         var cfg = Config()
-        if let value = doc.root["activation"] {
-            if let v = value.string, KeySpec.parse(v) != nil { cfg.activation = v } else { warnings.append("bad activation") }
+        let known: [String: Set<String>] = [
+            "hotkeys": ["dropdown", "window"],
+            "dropdown": ["edge", "columns", "rows", "fade_ms", "chord_timeout_ms"],
+            "tabbar": Set(["separator"] + TabBarStyle.colorKeys),
+        ]
+        for key in doc.root.keys.sorted() { warnings.append("unknown key \"\(key)\" (keys belong in a table)") }
+        for name in doc.tables.keys.sorted() where known[name] == nil { warnings.append("unknown table [\(name)]") }
+        for name in doc.arrays.keys.sorted() where name != "command" { warnings.append("unknown table [[\(name)]]") }
+        for (name, keys) in known.sorted(by: { $0.key < $1.key }) {
+            for k in (doc.tables[name] ?? [:]).keys.sorted() where !keys.contains(k) {
+                warnings.append("[\(name)]: unknown key \"\(k)\"")
+            }
+        }
+
+        let hotkeys = doc.tables["hotkeys"] ?? [:]
+        if let value = hotkeys["dropdown"] {
+            if let v = value.string, KeySpec.parse(v) != nil { cfg.activation = v } else { warnings.append("[hotkeys]: bad dropdown") }
         }
         var windowSpec: KeySpec?
-        if let value = doc.root["window_hotkey"] {
+        if let value = hotkeys["window"] {
             if let v = value.string, let spec = KeySpec.parse(v) {
                 if spec == KeySpec.parse(cfg.activation) {
-                    warnings.append("window_hotkey duplicates the activation key")
+                    warnings.append("[hotkeys]: window duplicates dropdown")
                 } else {
                     cfg.windowHotkey = v
                     windowSpec = spec
                 }
-            } else { warnings.append("bad window_hotkey") }
+            } else { warnings.append("[hotkeys]: bad window") }
         }
-        let known: Set<String> = ["activation", "window_hotkey", "chord_window_ms", "fade_ms", "columns", "rows", "edge", "size"]
-        for key in doc.root.keys.sorted() where !known.contains(key) { warnings.append("unknown key \"\(key)\"") }
-        for name in doc.tables.keys.sorted() where name != "tabbar" { warnings.append("unknown table [\(name)]") }
+
         if let table = doc.tables["tabbar"] {
-            for k in table.keys.sorted() where k != "separator" && !TabBarStyle.colorKeys.contains(k) {
-                warnings.append("[tabbar]: unknown key \"\(k)\"")
-            }
             if let value = table["separator"] {
                 if let v = value.string { cfg.tabBar.separator = v } else { warnings.append("[tabbar]: separator must be a string") }
             }
@@ -135,21 +145,20 @@ struct Config: Equatable {
                 }
             }
         }
-        for name in doc.arrays.keys.sorted() where name != "command" { warnings.append("unknown table [[\(name)]]") }
 
+        let dropdown = doc.tables["dropdown"] ?? [:]
         func int(_ key: String, _ range: ClosedRange<Int>, _ apply: (Int) -> Void) {
-            guard let value = doc.root[key] else { return }
+            guard let value = dropdown[key] else { return }
             if let v = value.int, range.contains(v) { apply(v) } else {
-                warnings.append("\(key) must be an integer in \(range.lowerBound)...\(range.upperBound)")
+                warnings.append("[dropdown]: \(key) must be an integer in \(range.lowerBound)...\(range.upperBound)")
             }
         }
-        int("chord_window_ms", 0...10_000) { cfg.chordWindowMs = $0 }
+        int("chord_timeout_ms", 0...10_000) { cfg.chordWindowMs = $0 }
         int("fade_ms", 0...10_000) { cfg.fadeMs = $0 }
         int("columns", 10...1000) { cfg.columns = $0 }
         int("rows", 3...500) { cfg.rows = $0 }
-        if doc.root["size"] != nil { warnings.append("size is replaced by columns and rows") }
-        if let value = doc.root["edge"] {
-            if let v = value.string, let e = Edge(rawValue: v) { cfg.edge = e } else { warnings.append("bad edge") }
+        if let value = dropdown["edge"] {
+            if let v = value.string, let e = Edge(rawValue: v) { cfg.edge = e } else { warnings.append("[dropdown]: bad edge") }
         }
 
         var seen = Set<String>()
@@ -157,7 +166,7 @@ struct Config: Equatable {
         if let activation = KeySpec.parse(cfg.activation) { seenHotkeys.insert(activation) }
         if let windowSpec { seenHotkeys.insert(windowSpec) }
         for (i, table) in (doc.arrays["command"] ?? []).enumerated() {
-            for k in table.keys.sorted() where !["key", "run", "cwd", "hotkey", "name"].contains(k) {
+            for k in table.keys.sorted() where !["chord", "run", "cwd", "hotkey", "name"].contains(k) {
                 warnings.append("[[command]] #\(i + 1): unknown key \"\(k)\"")
             }
             guard let run = table["run"]?.string, !run.isEmpty else {
@@ -165,9 +174,9 @@ struct Config: Equatable {
                 continue
             }
             var key: String?
-            if let value = table["key"] {
+            if let value = table["chord"] {
                 guard let k = value.string?.lowercased(), k.count == 1, KeySpec.keyCode(forName: k) != nil else {
-                    warnings.append("[[command]] #\(i + 1): key must be one letter, digit or punctuation mark")
+                    warnings.append("[[command]] #\(i + 1): chord must be one letter, digit or punctuation mark")
                     continue
                 }
                 key = k
@@ -181,11 +190,11 @@ struct Config: Equatable {
                 hotkey = h
             }
             guard key != nil || hotkey != nil else {
-                warnings.append("[[command]] #\(i + 1) needs a key or a hotkey")
+                warnings.append("[[command]] #\(i + 1) needs a chord or a hotkey")
                 continue
             }
             if let key, seen.contains(key) {
-                warnings.append("duplicate command key \"\(key)\"")
+                warnings.append("duplicate command chord \"\(key)\"")
                 continue
             }
             let spec = hotkey.flatMap(KeySpec.parse)
@@ -212,25 +221,24 @@ struct Config: Equatable {
     static let defaultFile = """
     # TermLaunch config. Terminal appearance comes from your Ghostty config.
 
+    [hotkeys]
     # Global hotkey that shows/hides the Dropdown.
-    activation = "ctrl+`"
-
+    dropdown = "ctrl+`"
     # Optional global hotkey that toggles between the Dropdown and a normal
     # window with the same Tabs (e.g. "cmd+shift+space"). Unset = no window mode.
-    # window_hotkey = "cmd+shift+space"
+    # window = "cmd+shift+space"
 
-    # After the Dropdown appears, a Command key pressed within this many ms
-    # opens its command. Any other key ends the window and goes to the terminal.
-    chord_window_ms = 300
-
-    # Fade in/out duration in ms (0 = instant).
-    fade_ms = 120
-
-    # Terminal grid size of the Dropdown (limited to the visible screen area),
-    # and the edge it hangs from ("top", "bottom", "left", "right").
+    [dropdown]
+    # Terminal grid size (limited to the visible screen area) and the edge it
+    # hangs from ("top", "bottom", "left", "right").
     columns = 120
     rows = 30
     edge = "top"
+    # Fade in/out duration in ms (0 = instant).
+    fade_ms = 120
+    # After the Dropdown appears, a command chord pressed within this many ms
+    # opens its command. Any other key ends the window and goes to the terminal.
+    chord_timeout_ms = 300
 
     # Tab bar. Colors and font come from your Ghostty theme; every key here is
     # optional. Colors are "#rrggbb" or "palette:N" (a Ghostty palette slot).
@@ -244,12 +252,12 @@ struct Config: Equatable {
 
     # Commands. Each runs in its own Tab through your login shell; the Tab
     # closes (and the Dropdown hides) on exit 0, otherwise it holds the output.
-    # "key" is pressed right after the Activation key; "hotkey" is a global
-    # shortcut (like activation, e.g. "f2" or "cmd+shift+g") that works from
-    # anywhere. Set either or both.
+    # "chord" is pressed right after the dropdown hotkey; "hotkey" is a global
+    # shortcut (like the dropdown one, e.g. "f2" or "cmd+shift+g") that works
+    # from anywhere. Set either or both.
     #
     # [[command]]
-    # key = "g"
+    # chord = "g"
     # hotkey = "f2"
     # run = "lazygit"
     # cwd = "~/src"
