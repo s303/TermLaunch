@@ -16,8 +16,10 @@ Default hotkey: Ctrl+` (`activation` in the config).
 ## Install
 
 ```bash
-scripts/install.sh   # builds Release, copies to /Applications, launches it
+brew install --cask s303/tap/termlaunch
 ```
+
+To build the release zip yourself, run `scripts/package.sh` (output in `dist/`).
 
 The installed copy turns on launch at login the first time it starts (toggle in the menu-bar item). macOS may ask you to approve it once in System Settings > General > Login Items.
 
