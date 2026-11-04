@@ -1,23 +1,61 @@
 import Foundation
 
+/// A command that is built into TermLaunch rather than run through the shell.
+enum Builtin: String {
+    case launcher
+
+    var title: String { "Launcher" }
+}
+
 struct CommandBinding: Equatable {
+    enum Action: Equatable {
+        case run(String)
+        case builtin(Builtin)
+    }
+
     /// Single key pressed during the chord window (lowercased).
     let key: String?
-    let run: String
+    let action: Action
     let cwd: String?
     /// Global hotkey (KeySpec syntax) that shows the Dropdown and opens this command.
     var hotkey: String? = nil
     /// Overrides the Commands menu label and pins the Tab title.
     var name: String? = nil
 
+    init(key: String?, action: Action, cwd: String?, hotkey: String? = nil, name: String? = nil) {
+        self.key = key
+        self.action = action
+        self.cwd = cwd
+        self.hotkey = hotkey
+        self.name = name
+    }
+
+    init(key: String?, run: String, cwd: String?, hotkey: String? = nil, name: String? = nil) {
+        self.init(key: key, action: .run(run), cwd: cwd, hotkey: hotkey, name: name)
+    }
+
+    /// The shell command line, or nil for a builtin.
+    var run: String? {
+        if case .run(let run) = action { return run }
+        return nil
+    }
+
     /// Menu label and initial Tab title.
-    var displayName: String { name ?? run }
+    var displayName: String {
+        switch action {
+        case .run(let run): return name ?? run
+        case .builtin(let builtin): return name ?? builtin.title
+        }
+    }
 
     /// Identity of the Command Tab; at most one Tab exists per id.
     var id: String {
         if let key { return "key:" + key }
         if let hotkey { return "hotkey:" + hotkey.lowercased() }
-        return "run:" + run
+        switch action {
+        case .run(let run): return "run:" + run
+        case .builtin(let builtin): return "builtin:" + builtin.rawValue
+        }
     }
 }
 
@@ -166,11 +204,28 @@ struct Config: Equatable {
         if let activation = KeySpec.parse(cfg.activation) { seenHotkeys.insert(activation) }
         if let windowSpec { seenHotkeys.insert(windowSpec) }
         for (i, table) in (doc.arrays["command"] ?? []).enumerated() {
-            for k in table.keys.sorted() where !["chord", "run", "cwd", "hotkey", "name"].contains(k) {
+            for k in table.keys.sorted() where !["chord", "run", "builtin", "cwd", "hotkey", "name"].contains(k) {
                 warnings.append("[[command]] #\(i + 1): unknown key \"\(k)\"")
             }
-            guard let run = table["run"]?.string, !run.isEmpty else {
-                warnings.append("[[command]] #\(i + 1) needs a run")
+            let action: CommandBinding.Action
+            switch (table["run"], table["builtin"]) {
+            case (let run?, nil):
+                guard let run = run.string, !run.isEmpty else {
+                    warnings.append("[[command]] #\(i + 1): run must be a non-empty string")
+                    continue
+                }
+                action = .run(run)
+            case (nil, let builtin?):
+                guard let builtin = builtin.string.flatMap(Builtin.init(rawValue:)) else {
+                    warnings.append("[[command]] #\(i + 1): builtin must be \"launcher\"")
+                    continue
+                }
+                action = .builtin(builtin)
+            case (_?, _?):
+                warnings.append("[[command]] #\(i + 1) has both run and builtin")
+                continue
+            case (nil, nil):
+                warnings.append("[[command]] #\(i + 1) needs a run or a builtin")
                 continue
             }
             var key: String?
@@ -213,7 +268,7 @@ struct Config: Equatable {
             // Only accepted commands claim their key and hotkey.
             if let key { seen.insert(key) }
             if let spec { seenHotkeys.insert(spec) }
-            cfg.commands.append(CommandBinding(key: key, run: run, cwd: table["cwd"]?.string, hotkey: hotkey, name: name))
+            cfg.commands.append(CommandBinding(key: key, action: action, cwd: table["cwd"]?.string, hotkey: hotkey, name: name))
         }
         return (cfg, warnings)
     }
@@ -262,6 +317,13 @@ struct Config: Equatable {
     # run = "lazygit"
     # cwd = "~/src"
     # name = "Git"   # optional label for the Commands menu and the Tab title
+    #
+    # builtin = "launcher" in place of run opens the built-in app launcher and
+    # calculator: Enter opens the app or copies the result, Esc closes it.
+    #
+    # [[command]]
+    # chord = "o"
+    # builtin = "launcher"
 
     """
 }

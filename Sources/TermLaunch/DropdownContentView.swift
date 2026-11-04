@@ -4,6 +4,8 @@ import AppKit
 /// visible and unoccluded) plus the tab bar, which hides for a single Tab.
 final class DropdownContentView: NSView {
     private let ghostty: GhosttyApp
+    /// Started with the app so the Launcher opens on a warm index.
+    private let appIndex = AppIndex()
     private let bar = TabBarView()
     private(set) var tabs: [Tab] = []
     private(set) var activeIndex = 0
@@ -21,7 +23,7 @@ final class DropdownContentView: NSView {
 
     var isEmpty: Bool { tabs.isEmpty }
     #if DEBUG
-    var debugGrid: (columns: Int, rows: Int)? { active?.view.debugGrid }
+    var debugGrid: (columns: Int, rows: Int)? { (active?.view as? GhosttySurfaceView)?.debugGrid }
     #endif
     /// Window mode shows the tab bar above the terminal; the Dropdown keeps it below.
     var barOnTop = false { didSet { if barOnTop != oldValue { needsLayout = true } } }
@@ -36,7 +38,15 @@ final class DropdownContentView: NSView {
         set { bar.style = newValue }
     }
 
-    func cellMetrics() -> (cell: CGSize, padding: CGSize)? { active?.view.cellMetrics() }
+    /// The active terminal's metrics; a Launcher Tab borrows another terminal's
+    /// (or the last seen) so the Dropdown keeps its size.
+    func cellMetrics() -> (cell: CGSize, padding: CGSize)? {
+        if let m = active?.view.cellMetrics() ?? tabs.lazy.compactMap({ $0.view.cellMetrics() }).first {
+            lastMetrics = m
+        }
+        return lastMetrics
+    }
+    private var lastMetrics: (cell: CGSize, padding: CGSize)?
     func isCommandTabActive(_ id: String) -> Bool { active?.kind == .command(id: id) }
     private var active: Tab? { tabs.indices.contains(activeIndex) ? tabs[activeIndex] : nil }
 
@@ -73,16 +83,30 @@ final class DropdownContentView: NSView {
             return
         }
         NSLog("TermLaunch: opening command tab for %@", binding.id)
+        guard case .run(let run) = binding.action else {
+            openLauncherTab(binding)
+            return
+        }
         let exitFile = NSTemporaryDirectory() + "termlaunch-exit-\(UUID().uuidString)"
         let cwd = binding.cwd.map { ($0 as NSString).expandingTildeInPath } ?? NSHomeDirectory()
         add(
             kind: .command(id: binding.id),
             title: binding.displayName,
             pinnedTitle: binding.name != nil,
-            command: ShellCommand.wrapper(run: binding.run, exitFile: exitFile),
+            command: ShellCommand.wrapper(run: run, exitFile: exitFile),
             workingDirectory: cwd,
             exitFile: exitFile
         )
+    }
+
+    private func openLauncherTab(_ binding: CommandBinding) {
+        let view = LauncherView(index: appIndex, theme: ghostty.theme)
+        let tab = Tab(kind: .command(id: binding.id), view: view, title: binding.displayName)
+        view.onFinish = { [weak self, weak tab] in
+            guard let self, let tab else { return }
+            self.close(tab, exitedCleanly: true)
+        }
+        insert(tab)
     }
 
     @discardableResult
@@ -109,11 +133,15 @@ final class DropdownContentView: NSView {
             tab.title = title
             self.refreshBar()
         }
-        addSubview(view)
+        insert(tab)
+        return tab
+    }
+
+    private func insert(_ tab: Tab) {
+        addSubview(tab.view)
         tabs.append(tab)
         needsLayout = true
         select(tabs.count - 1)
-        return tab
     }
 
     func select(_ index: Int) {
@@ -121,7 +149,7 @@ final class DropdownContentView: NSView {
         activeIndex = index
         applyVisibility()
         refreshBar()
-        if displayed { window?.makeFirstResponder(tabs[index].view) }
+        if displayed { window?.makeFirstResponder(tabs[index].view.focusView) }
     }
 
     /// Drag-reorder: moves a Tab, keeping the same Tab active. Numbers and ⌘1–9 follow the new order.
@@ -146,7 +174,7 @@ final class DropdownContentView: NSView {
     func setDisplayed(_ displayed: Bool) {
         self.displayed = displayed
         applyVisibility()
-        if displayed, let tab = active { window?.makeFirstResponder(tab.view) }
+        if displayed, let tab = active { window?.makeFirstResponder(tab.view.focusView) }
     }
 
     func selectNext() { if !tabs.isEmpty { select((activeIndex + 1) % tabs.count) } }

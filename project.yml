@@ -35,8 +35,8 @@ targets:
       path: Sources/TermLaunch/Info.plist
       properties:
         CFBundleName: TermLaunch
-        CFBundleShortVersionString: "0.22"
-        CFBundleVersion: "3"
+        CFBundleShortVersionString: "0.25"
+        CFBundleVersion: "4"
         LSUIElement: true
         LSMinimumSystemVersion: "14.0"
     settings:
@@ -57,6 +57,10 @@ targets:
       - Sources/TermLaunch/ShellCommand.swift
       - Sources/TermLaunch/Presentation.swift
       - Sources/TermLaunch/TabShortcut.swift
+      - Sources/TermLaunch/Frecency.swift
+      - Sources/TermLaunch/FuzzyScorer.swift
+      - Sources/TermLaunch/Calc.swift
+      - Sources/TermLaunch/LauncherModel.swift
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES

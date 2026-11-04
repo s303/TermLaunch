@@ -115,25 +115,52 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(result.warnings.count, 1)
     }
 
+    func testBuiltinCommand() throws {
+        let result = try load("""
+        [[command]]
+        chord = "o"
+        builtin = "launcher"
+        [[command]]
+        chord = "p"
+        builtin = "launcher"
+        name = "Apps"
+        [[command]]
+        chord = "q"
+        builtin = "nope"
+        [[command]]
+        chord = "r"
+        run = "ls"
+        builtin = "launcher"
+        """)
+        let c = try XCTUnwrap(result.config)
+        XCTAssertEqual(c.commands, [
+            CommandBinding(key: "o", action: .builtin(.launcher), cwd: nil),
+            CommandBinding(key: "p", action: .builtin(.launcher), cwd: nil, name: "Apps"),
+        ])
+        XCTAssertEqual(c.commands.map(\.displayName), ["Launcher", "Apps"])
+        XCTAssertEqual(c.commands.map(\.run), [nil, nil])
+        XCTAssertEqual(result.warnings.count, 2) // unknown builtin, both run and builtin
+    }
+
     func testCommandHotkeys() throws {
         let result = try load("""
         [hotkeys]
         dropdown = "ctrl+`"
         [[command]]
-        hotchord = "F2"
+        hotkey = "F2"
         run = "o"
         [[command]]
         chord = "g"
-        hotchord = "cmd+shift+g"
+        hotkey = "cmd+shift+g"
         run = "lazygit"
         [[command]]
-        hotchord = "f2"
+        hotkey = "f2"
         run = "dup"
         [[command]]
-        hotchord = "ctrl+`"
+        hotkey = "ctrl+`"
         run = "clash"
         [[command]]
-        hotchord = "bogus"
+        hotkey = "bogus"
         run = "bad"
         [[command]]
         run = "nokeys"
@@ -150,18 +177,18 @@ final class ConfigTests: XCTestCase {
     func testRejectedCommandDoesNotClaimItsKey() throws {
         let result = try load("""
         [[command]]
-        hotchord = "f2"
+        hotkey = "f2"
         run = "a"
         [[command]]
         chord = "g"
-        hotchord = "f2"
+        hotkey = "f2"
         run = "dup hotkey"
         [[command]]
         chord = "g"
         run = "reuses key"
         [[command]]
         chord = "h"
-        hotchord = "h"
+        hotkey = "h"
         run = "ids differ"
         """)
         let c = try XCTUnwrap(result.config)
@@ -180,19 +207,21 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(bad.warnings.count, 1)
 
         let clash = try load("""
-        activation = "f1"
-        window_hotchord = "F1"
+        [hotkeys]
+        dropdown = "f1"
+        window = "F1"
         [[command]]
-        hotchord = "f3"
+        hotkey = "f3"
         run = "a"
         """)
         XCTAssertNil(clash.config?.windowHotkey)
         XCTAssertEqual(clash.warnings.count, 1)
 
         let cmdClash = try load("""
-        window_hotchord = "f4"
+        [hotkeys]
+        window = "f4"
         [[command]]
-        hotchord = "f4"
+        hotkey = "f4"
         run = "a"
         """)
         XCTAssertEqual(cmdClash.config?.windowHotkey, "f4")

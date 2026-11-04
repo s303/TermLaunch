@@ -1,6 +1,5 @@
 import AppKit
 import XCTest
-@testable import TermLaunch
 
 final class TabShortcutTests: XCTestCase {
     private func shortcut(_ chars: String, keyCode: UInt16, _ flags: NSEvent.ModifierFlags) -> TabShortcut? {

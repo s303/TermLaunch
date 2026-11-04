@@ -27,6 +27,13 @@ _Avoid_: Session, pane
 **Command Tab**:
 A Tab running the command bound to a Command key. There is at most one per Command key: pressing that Command key again focuses the existing Command Tab instead of opening a second one. It survives the Dropdown being hidden. When its command exits successfully the Tab closes and the Dropdown hides; on failure the Tab stays showing the output until a keypress.
 
+**Launcher Tab**:
+A Command Tab for a command with `builtin = "launcher"` instead of `run`. It is not a terminal: a search field at the bottom with results growing upward, the best match nearest the field. Enter runs the selected result (open the app, copy the calculation) and Esc cancels; both close the Tab like a command that exited successfully. Its history is shared with the `oa` CLI.
+
+**Provider**:
+A compiled-in source of Launcher Tab results: apps (Spotlight, fuzzy match weighted by frecency) and the calculator. Every provider sees every query and returns no results when it doesn't apply; results are grouped by provider, calculator first. See [ADR 0003](docs/adr/0003-builtin-launcher-providers.md).
+_Avoid_: Plugin
+
 **Shell Tab**:
 A Tab running the default shell. It is what appears when the Dropdown is shown without a Command key. There can be many. A Shell Tab closes when its shell exits; if it was the last Tab, the Dropdown hides and a fresh Shell Tab is created on the next show.
 
