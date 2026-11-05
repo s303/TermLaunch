@@ -171,3 +171,39 @@ final class LauncherModelTests: XCTestCase {
         XCTAssertEqual(model.selected, 0)
     }
 }
+
+final class AppIndexTests: XCTestCase {
+    func testDataFolderNamedAppIsSkipped() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString).path
+        defer { try? fm.removeItem(atPath: root) }
+        let real = root + "/Real.app", ios = root + "/Phone.app", fake = root + "/https+++example.app"
+        try fm.createDirectory(atPath: real + "/Contents", withIntermediateDirectories: true)
+        try (["CFBundleName": "Real"] as NSDictionary).write(to: URL(fileURLWithPath: real + "/Contents/Info.plist"))
+        try fm.createDirectory(atPath: ios + "/WrappedBundle", withIntermediateDirectories: true)
+        fm.createFile(atPath: ios + "/WrappedBundle/Info.plist", contents: Data())
+        try fm.createDirectory(atPath: fake + "/cache", withIntermediateDirectories: true)
+        XCTAssertTrue(AppIndex.isLaunchTarget(real))
+        XCTAssertTrue(AppIndex.isLaunchTarget(ios))
+        XCTAssertFalse(AppIndex.isLaunchTarget(fake))
+    }
+
+    func testRules() {
+        let ok = { (path: String, info: [String: Any]) in AppIndex.isLaunchTarget(path, info: info) }
+        XCTAssertTrue(ok("/Applications/Safari.app", [:]))
+        XCTAssertTrue(ok("/System/Applications/Notes.app", [:]))
+        XCTAssertTrue(ok("/System/Library/CoreServices/Applications/Keychain Access.app", [:]))
+        XCTAssertTrue(ok("/System/Library/CoreServices/Finder.app", [:]))
+        XCTAssertFalse(ok("/System/Library/CoreServices/loginwindow.app", [:]))
+        XCTAssertFalse(ok("/System/Library/Input Methods/KoreanIM.app", [:]))
+        XCTAssertFalse(ok("/Library/Apple/System/Library/CoreServices/XProtect.app", [:]))
+        XCTAssertFalse(ok("/Users/me/Library/Developer/Xcode/DerivedData/X-abc/Build/Products/Debug/X.app", [:]))
+        XCTAssertFalse(ok("/Library/Application Support/Script Editor/Templates/Applet.app", [:]))
+        XCTAssertFalse(ok("/Users/me/Library/Scaler Music/PluginScanner.app", [:]))
+        // Menu-bar apps stay; background-only apps go.
+        XCTAssertTrue(ok("/Applications/Tailscale.app", ["LSUIElement": true]))
+        XCTAssertTrue(ok("/Applications/Tool.app", ["LSUIElement": "0"]))
+        XCTAssertFalse(ok("/Users/me/Applications/Handler.app", ["LSBackgroundOnly": true]))
+        XCTAssertFalse(ok("/Users/me/Library/Application Support/Google/GoogleUpdater.app", ["LSUIElement": "1"]))
+    }
+}
