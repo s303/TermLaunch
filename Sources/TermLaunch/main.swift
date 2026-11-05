@@ -8,7 +8,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var content: DropdownContentView?
     private var hotKey: HotKey?
     private var commandHotKeys: [HotKey] = []
-    private var windowHotKey: HotKey?
+    private var windowKeySpec: KeySpec?
+    private var windowKeyMonitor: Any?
     private var config = Config()
     private var configWatcher: ConfigWatcher?
     // Window mode: the Tabs live in `termWindow`; the Dropdown then only shows as a Temporary console.
@@ -16,7 +17,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var windowMode = false
     private var tempConsole = false
     private var previousApp: NSRunningApplication?
-    private static let windowHotKeyID: UInt32 = 1000
     private let loginItemEntry = NSMenuItem(title: "Launch at Login", action: nil, keyEquivalent: "")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -124,13 +124,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self?.toggleDropdown()
             }
         }
-        windowHotKey = nil
-        if let text = cfg.windowHotkey, let spec = KeySpec.parse(text) {
-            windowHotKey = HotKey(id: Self.windowHotKeyID, keyCode: spec.keyCode, modifiers: spec.modifiers) { [weak self] in
-                self?.windowHotkeyPressed()
-            }
-            if windowHotKey == nil { NSLog("TermLaunch: could not register window hotkey \"%@\"", text) }
-        }
+        windowKeySpec = cfg.windowHotkey.flatMap(KeySpec.parse)
+        installWindowKeyMonitor()
         commandHotKeys = []
         for (i, binding) in cfg.commands.enumerated() {
             guard let text = binding.hotkey, let spec = KeySpec.parse(text) else { continue }
@@ -236,11 +231,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: Window mode
 
-    private func windowHotkeyPressed() {
-        switch Presentation.windowHotkey(presentationState) {
-        case .enterWindowMode: enterWindowMode()
-        case .leaveWindowMode: leaveWindowMode()
-        default: break
+    /// The Window hotkey is app-local, not a global hotkey: it only acts while the
+    /// Dropdown or the Window is in front, so other apps keep the key (e.g. ⌘Enter).
+    private func installWindowKeyMonitor() {
+        guard windowKeyMonitor == nil else { return }
+        windowKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, let spec = self.windowKeySpec, Int(event.keyCode) == spec.keyCode,
+                  event.modifierFlags.intersection([.command, .option, .control, .shift]) == spec.nsModifiers
+            else { return event }
+            switch Presentation.windowHotkey(self.presentationState) {
+            case .enterWindowMode: if !event.isARepeat { self.enterWindowMode() }
+            case .leaveWindowMode: if !event.isARepeat { self.leaveWindowMode() }
+            default: return event
+            }
+            return nil
         }
     }
 

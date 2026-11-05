@@ -32,7 +32,9 @@ enum Presentation {
         return .showConsole
     }
 
+    /// Only while the Dropdown or the Window is in front; otherwise the key belongs to another app.
     static func windowHotkey(_ s: State) -> Action {
-        s.windowMode ? .leaveWindowMode : .enterWindowMode
+        guard s.consoleShown || (s.windowMode && s.windowIsKey) else { return .ignore }
+        return s.windowMode ? .leaveWindowMode : .enterWindowMode
     }
 }

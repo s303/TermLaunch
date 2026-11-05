@@ -26,8 +26,13 @@ final class PresentationTests: XCTestCase {
     }
 
     func testWindowHotkeyToggles() {
-        XCTAssertEqual(Presentation.windowHotkey(state()), .enterWindowMode)
-        XCTAssertEqual(Presentation.windowHotkey(state(window: true)), .leaveWindowMode)
+        XCTAssertEqual(Presentation.windowHotkey(state(console: true)), .enterWindowMode)
+        XCTAssertEqual(Presentation.windowHotkey(state(window: true, key: true)), .leaveWindowMode)
         XCTAssertEqual(Presentation.windowHotkey(state(window: true, console: true)), .leaveWindowMode)
+    }
+
+    func testWindowHotkeyIgnoredWhenNothingInFront() {
+        XCTAssertEqual(Presentation.windowHotkey(state()), .ignore)
+        XCTAssertEqual(Presentation.windowHotkey(state(window: true)), .ignore)
     }
 }

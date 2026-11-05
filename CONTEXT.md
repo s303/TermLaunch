@@ -42,7 +42,7 @@ TermLaunch can also run as a normal window, entered and left by the Window hotke
 _Avoid_: Detached, pop-out
 
 **Window hotkey**:
-Toggles between the Dropdown and Window mode, keeping all Tabs. Closing the Window (red button, ⌘W on the last Tab, ⌘Q) also leaves Window mode and keeps the Tabs; the Activation key then shows the Dropdown. Minimising the Window stays in Window mode. Quitting is only in the menu-bar item.
+Toggles between the Dropdown and Window mode, keeping all Tabs. It is not a global hotkey: it acts only while the Dropdown is showing or the Window is key and on screen; otherwise the key goes to the frontmost app. Closing the Window (red button, ⌘W on the last Tab, ⌘Q) also leaves Window mode and keeps the Tabs; the Activation key then shows the Dropdown. Minimising the Window stays in Window mode. Quitting is only in the menu-bar item.
 
 **Temporary console**:
 In Window mode, when the Window is not the key window (behind other apps or minimised), the Activation key or a Command hotkey shows the Dropdown with the same Tabs and hides the Window meanwhile. Dismissing it (same key, or losing focus) restores the Window to its previous frame, z-order and minimised state without taking focus. The Dock icon stays throughout. The Chord window also applies in the Window, started silently by the Activation key.
