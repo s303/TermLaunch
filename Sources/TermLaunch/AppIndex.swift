@@ -9,8 +9,10 @@ final class AppIndex {
     private(set) var apps: [AppEntry] = []
     private let query = NSMetadataQuery()
     private var scanned: [AppEntry] = []
-    /// `AppEntry.isLaunchTarget` per path; bundles rarely change kind.
+    /// `AppEntry.isLaunchTarget` per path; bundles rarely change kind. Main thread only.
     private var launchable: [String: Bool] = [:]
+    /// Bumped by each rebuild so a stale background result isn't published.
+    private var generation = 0
 
     init() {
         query.predicate = NSPredicate(format: "kMDItemContentType == 'com.apple.application-bundle'")
@@ -31,6 +33,7 @@ final class AppIndex {
 
     deinit { query.stop() }
 
+    /// Main thread only (reads the query results).
     private func rebuild() {
         query.disableUpdates()
         var paths = (query.results as? [NSMetadataItem] ?? []).compactMap {
@@ -40,17 +43,26 @@ final class AppIndex {
         paths += scanned.map(\.path)
         var seen = Set<String>()
         // Helpers bundled inside another app (".../Foo.app/Contents/...") are not launch targets.
-        apps = paths.filter {
-            !$0.dropLast(4).contains(".app/") && seen.insert($0).inserted && isLaunchable($0)
-        }.map(AppEntry.init(path:))
-        NotificationCenter.default.post(name: Self.didChange, object: self)
+        let candidates = paths.filter { !$0.dropLast(4).contains(".app/") && seen.insert($0).inserted }
+        generation += 1
+        let current = generation
+        let misses = candidates.filter { launchable[$0] == nil }
+        if misses.isEmpty { return publish(candidates) }
+        // Info.plist reads happen off the main thread.
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let checked = misses.map { ($0, Self.isLaunchTarget($0)) }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                for (path, result) in checked { self.launchable[path] = result }
+                // A newer rebuild is in flight (or already published); it covers these paths.
+                if current == self.generation { self.publish(candidates) }
+            }
+        }
     }
 
-    private func isLaunchable(_ path: String) -> Bool {
-        if let known = launchable[path] { return known }
-        let result = Self.isLaunchTarget(path)
-        launchable[path] = result
-        return result
+    private func publish(_ candidates: [String]) {
+        apps = candidates.filter { launchable[$0] == true }.map(AppEntry.init(path:))
+        NotificationCenter.default.post(name: Self.didChange, object: self)
     }
 
     /// Whether a bundle Spotlight reports belongs in the launcher. Reads the
