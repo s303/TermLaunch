@@ -227,23 +227,8 @@ final class GhosttySurfaceView: NSView, NSTextInputClient {
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         // Every tab's view stays in the hierarchy, so AppKit offers the key to
         // all of them; only the focused one may act on it.
-        guard let surface, event.type == .keyDown, window?.firstResponder === self else { return false }
-        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        guard flags.contains(.command), !flags.contains(.control), !flags.contains(.option),
-              let key = event.charactersIgnoringModifiers?.lowercased() else { return false }
-
-        let action: String?
-        switch (key, flags.contains(.shift)) {
-        case ("c", false): action = "copy_to_clipboard"
-        case ("v", false): action = "paste_from_clipboard"
-        case ("a", false): action = "select_all"
-        case ("k", false): action = "clear_screen"
-        case ("=", _), ("+", _): action = "increase_font_size:1"
-        case ("-", _): action = "decrease_font_size:1"
-        case ("0", false): action = "reset_font_size"
-        default: action = nil
-        }
-        guard let action else { return false }
+        guard let surface, window?.firstResponder === self,
+              let action = TerminalShortcut.action(for: event) else { return false }
         _ = action.withCString { ghostty_surface_binding_action(surface, $0, UInt(action.utf8.count)) }
         return true
     }

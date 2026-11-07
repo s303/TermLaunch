@@ -59,6 +59,14 @@ struct KeySpec: Hashable {
         return m
     }
 
+    /// Whether a key event is this key with exactly these modifiers (fn and Caps Lock ignored).
+    func matches(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) -> Bool {
+        Int(keyCode) == self.keyCode
+            && modifiers.intersection([.command, .option, .control, .shift]) == nsModifiers
+    }
+
+    func matches(_ event: NSEvent) -> Bool { matches(keyCode: event.keyCode, modifiers: event.modifierFlags) }
+
     /// The `keyEquivalent` string an NSMenuItem needs for this key.
     var menuKeyEquivalent: String? {
         let fkeys: [Int: Int] = [

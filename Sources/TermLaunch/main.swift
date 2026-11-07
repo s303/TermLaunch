@@ -110,11 +110,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             panel.fadeDuration = TimeInterval(cfg.fadeMs) / 1000
             panel.edge = cfg.edge
             panel.chordWindow = TimeInterval(cfg.chordWindowMs) / 1000
-            panel.commandKeys = Set(cfg.commands.compactMap(\.key))
+            panel.chord.commandKeys = Set(cfg.commands.compactMap(\.key))
         }
         if let termWindow {
             termWindow.chordWindow = TimeInterval(cfg.chordWindowMs) / 1000
-            termWindow.commandKeys = Set(cfg.commands.compactMap(\.key))
+            termWindow.chord.commandKeys = Set(cfg.commands.compactMap(\.key))
+            termWindow.chord.activationKey = KeySpec.parse(cfg.activation)
         }
         content?.tabBarStyle = cfg.tabBar
         if windowMode { NSApp.mainMenu = makeMainMenu() }
@@ -236,9 +237,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func installWindowKeyMonitor() {
         guard windowKeyMonitor == nil else { return }
         windowKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self, let spec = self.windowKeySpec, Int(event.keyCode) == spec.keyCode,
-                  event.modifierFlags.intersection([.command, .option, .control, .shift]) == spec.nsModifiers
-            else { return event }
+            guard let self, self.windowKeySpec?.matches(event) == true else { return event }
             switch Presentation.windowHotkey(self.presentationState) {
             case .enterWindowMode: if !event.isARepeat { self.enterWindowMode() }
             case .leaveWindowMode: if !event.isARepeat { self.leaveWindowMode() }
@@ -254,7 +253,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.onTabShortcut = { [weak self] in self?.handle($0) }
         window.onCommandKey = { [weak self] key in self?.runCommand(key: key) }
         window.chordWindow = TimeInterval(config.chordWindowMs) / 1000
-        window.commandKeys = Set(config.commands.compactMap(\.key))
+        window.chord.commandKeys = Set(config.commands.compactMap(\.key))
+        window.chord.activationKey = KeySpec.parse(config.activation)
         window.onVisibilityChanged = { [weak self] visible in
             guard let self, self.windowMode, !self.tempConsole else { return }
             self.content?.setDisplayed(visible)

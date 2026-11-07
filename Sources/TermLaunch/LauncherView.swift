@@ -113,29 +113,18 @@ final class LauncherView: NSView, TabContent, NSTextFieldDelegate {
 
     func controlTextDidChange(_ obj: Notification) { reload() }
 
-    /// rush's bindings first (several collide with Cocoa's emacs defaults, e.g.
-    /// Ctrl-K, Ctrl-H, Ctrl-J), then the standard selectors. Keys match the
-    /// physical key, like the chord, so they work in any keyboard layout.
+    /// The bindings themselves are in `LauncherKey`.
     func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
-        if let event = NSApp.currentEvent, event.type == .keyDown,
-           event.modifierFlags.intersection([.control, .command, .option]) == .control {
-            switch KeySpec.name(forKeyCode: event.keyCode) {
-            case "j", "n": model.moveDown(); list.reload(); return true
-            case "k", "p": model.moveUp(); list.reload(); return true
-            case "h": textView.moveLeft(nil); return true
-            case "l": textView.moveRight(nil); return true
-            case "w": textView.deleteWordBackward(nil); return true
-            case "u": textView.deleteToBeginningOfLine(nil); return true
-            case "c": onFinish?(); return true
-            default: break
-            }
-        }
-        switch selector {
-        case #selector(NSResponder.moveUp(_:)): model.moveUp(); list.reload()
-        case #selector(NSResponder.moveDown(_:)): model.moveDown(); list.reload()
-        case #selector(NSResponder.insertNewline(_:)): runSelected()
-        case #selector(NSResponder.cancelOperation(_:)): onFinish?()
-        default: return false
+        guard let key = LauncherKey.from(NSApp.currentEvent, selector: selector) else { return false }
+        switch key {
+        case .down: model.moveDown(); list.reload()
+        case .up: model.moveUp(); list.reload()
+        case .left: textView.moveLeft(nil)
+        case .right: textView.moveRight(nil)
+        case .deleteWordBackward: textView.deleteWordBackward(nil)
+        case .deleteToLineStart: textView.deleteToBeginningOfLine(nil)
+        case .run: runSelected()
+        case .cancel: onFinish?()
         }
         return true
     }
@@ -153,16 +142,16 @@ private final class SearchField: NSTextField {
     }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        guard event.modifierFlags.intersection([.command, .control, .option]) == .command,
-              let editor = currentEditor() else { return super.performKeyEquivalent(with: event) }
-        let shift = event.modifierFlags.contains(.shift)
-        switch KeySpec.name(forKeyCode: event.keyCode) {
-        case "c": editor.copy(nil)
-        case "v": editor.paste(nil)
-        case "x": editor.cut(nil)
-        case "a": editor.selectAll(nil)
-        case "z": shift ? editor.undoManager?.redo() : editor.undoManager?.undo()
-        default: return super.performKeyEquivalent(with: event)
+        guard let key = EditKey.from(event), let editor = currentEditor() else {
+            return super.performKeyEquivalent(with: event)
+        }
+        switch key {
+        case .copy: editor.copy(nil)
+        case .paste: editor.paste(nil)
+        case .cut: editor.cut(nil)
+        case .selectAll: editor.selectAll(nil)
+        case .undo: editor.undoManager?.undo()
+        case .redo: editor.undoManager?.redo()
         }
         return true
     }

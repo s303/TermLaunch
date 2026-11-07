@@ -13,11 +13,10 @@ final class DropdownPanel: NSPanel {
 
     // Chord window: after the Dropdown is shown, a Command key opens its command.
     // Any other key ends the window and is delivered to the terminal as usual.
-    var commandKeys: Set<String> = []
+    var chord = ChordKeys()
     var chordWindow: TimeInterval = 0.3
     var onCommandKey: ((String) -> Void)?
     private var chordTimer: Timer?
-    private var swallowedKeyCodes = Set<UInt16>()
     var onResignKey: (() -> Void)?
 
     init() {
@@ -101,7 +100,7 @@ final class DropdownPanel: NSPanel {
     private(set) var shownAt = Date.distantPast
     func show() {
         shownAt = Date()
-        swallowedKeyCodes.removeAll()
+        chord.reset()
         let frame = targetFrame(on: Self.screenUnderMouse())
         setFrame(frame, display: false)
         alphaValue = 0
@@ -114,52 +113,45 @@ final class DropdownPanel: NSPanel {
 
     func beginChord() {
         endChord()
-        guard !commandKeys.isEmpty, chordWindow > 0 else { return }
+        guard chordWindow > 0, chord.begin() else { return }
         chordTimer = Timer.scheduledTimer(withTimeInterval: chordWindow, repeats: false) { [weak self] _ in
             self?.chordTimer = nil
+            self?.chord.end()
         }
     }
 
     private func endChord() {
         chordTimer?.invalidate()
         chordTimer = nil
+        chord.end()
     }
 
     override func sendEvent(_ event: NSEvent) {
+        let result: ChordKeys.Result
         switch event.type {
-        case .keyDown where swallowedKeyCodes.contains(event.keyCode):
-            // Auto-repeat of a Command key that already ran its command.
-            return
-        case .keyDown where chordTimer != nil:
-            endChord()
-            let blocking: NSEvent.ModifierFlags = [.command, .control, .option]
-            // Match the physical key, like the Activation key, so non-US layouts work.
-            if event.modifierFlags.isDisjoint(with: blocking),
-               let key = KeySpec.name(forKeyCode: event.keyCode),
-               commandKeys.contains(key) {
-                swallowedKeyCodes.insert(event.keyCode)
-                onCommandKey?(key)
-                return
-            }
-        case .keyUp where swallowedKeyCodes.remove(event.keyCode) != nil:
-            return
-        default:
-            break
+        case .keyDown: result = chord.keyDown(keyCode: event.keyCode, modifiers: event.modifierFlags)
+        case .keyUp: result = chord.keyUp(keyCode: event.keyCode)
+        default: result = .pass
         }
-        super.sendEvent(event)
+        if !chord.isActive { chordTimer?.invalidate(); chordTimer = nil }
+        switch result {
+        case .pass: super.sendEvent(event)
+        case .swallow: break
+        case .command(let key): onCommandKey?(key)
+        }
     }
 
     /// Hides without the fade, for handing the content to the Window.
     func hideImmediately() {
         endChord()
-        swallowedKeyCodes.removeAll()
+        chord.reset()
         alphaValue = 0
         orderOut(nil)
     }
 
     func hide() {
         endChord()
-        swallowedKeyCodes.removeAll() // keyUps for these won't reach us once hidden
+        chord.reset() // keyUps for held keys won't reach us once hidden
         guard isVisible else { return }
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = fadeDuration

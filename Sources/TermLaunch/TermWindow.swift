@@ -9,45 +9,34 @@ final class TermWindow: NSWindow, NSWindowDelegate {
 
     // Chord window: after the Activation key, a Command key runs its command in the Window.
     // Any other key ends the window and is delivered to the terminal as usual.
-    var commandKeys: Set<String> = []
+    var chord = ChordKeys()
     var chordWindow: TimeInterval = 0.3
     var onCommandKey: ((String) -> Void)?
     private var chordTimer: Timer?
-    private var swallowedKeyCodes = Set<UInt16>()
 
     func beginChord() {
-        endChord()
-        guard !commandKeys.isEmpty, chordWindow > 0 else { return }
-        chordTimer = Timer.scheduledTimer(withTimeInterval: chordWindow, repeats: false) { [weak self] _ in
-            self?.chordTimer = nil
-        }
-    }
-
-    private func endChord() {
         chordTimer?.invalidate()
         chordTimer = nil
+        guard chordWindow > 0, chord.begin() else { return }
+        chordTimer = Timer.scheduledTimer(withTimeInterval: chordWindow, repeats: false) { [weak self] _ in
+            self?.chordTimer = nil
+            self?.chord.end()
+        }
     }
 
     override func sendEvent(_ event: NSEvent) {
+        let result: ChordKeys.Result
         switch event.type {
-        case .keyDown where swallowedKeyCodes.contains(event.keyCode):
-            return
-        case .keyDown where chordTimer != nil:
-            endChord()
-            let blocking: NSEvent.ModifierFlags = [.command, .control, .option]
-            if event.modifierFlags.isDisjoint(with: blocking),
-               let key = KeySpec.name(forKeyCode: event.keyCode),
-               commandKeys.contains(key) {
-                swallowedKeyCodes.insert(event.keyCode)
-                onCommandKey?(key)
-                return
-            }
-        case .keyUp where swallowedKeyCodes.remove(event.keyCode) != nil:
-            return
-        default:
-            break
+        case .keyDown: result = chord.keyDown(keyCode: event.keyCode, modifiers: event.modifierFlags)
+        case .keyUp: result = chord.keyUp(keyCode: event.keyCode)
+        default: result = .pass
         }
-        super.sendEvent(event)
+        if !chord.isActive { chordTimer?.invalidate(); chordTimer = nil }
+        switch result {
+        case .pass: super.sendEvent(event)
+        case .swallow: break
+        case .command(let key): onCommandKey?(key)
+        }
     }
 
     init(background: NSColor) {

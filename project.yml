@@ -56,6 +56,9 @@ targets:
       - Sources/TermLaunch/KeySpec.swift
       - Sources/TermLaunch/ShellCommand.swift
       - Sources/TermLaunch/Presentation.swift
+      - Sources/TermLaunch/ChordKeys.swift
+      - Sources/TermLaunch/LauncherKeys.swift
+      - Sources/TermLaunch/TerminalShortcut.swift
       - Sources/TermLaunch/TabShortcut.swift
       - Sources/TermLaunch/Frecency.swift
       - Sources/TermLaunch/FuzzyScorer.swift
