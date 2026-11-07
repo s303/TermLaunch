@@ -7,9 +7,7 @@ final class DropdownContentView: NSView {
     /// Started with the app so the Launcher opens on a warm index.
     private let appIndex = AppIndex()
     private let bar = TabBarView()
-    private(set) var tabs: [Tab] = []
-    private(set) var activeIndex = 0
-    private var shellCount = 0
+    private var list = TabList<Tab>()
     /// Whether the Dropdown is on screen. Hidden surfaces are unfocused and occluded
     /// so the renderer stops, and Tab changes while hidden must not undo that.
     private(set) var displayed = false
@@ -21,7 +19,7 @@ final class DropdownContentView: NSView {
     /// Called when a Command Tab has closed (success or after a held failure).
     var onCommandTabClosed: (() -> Void)?
 
-    var isEmpty: Bool { tabs.isEmpty }
+    var isEmpty: Bool { list.isEmpty }
     #if DEBUG
     var debugGrid: (columns: Int, rows: Int)? { (active?.view as? GhosttySurfaceView)?.debugGrid }
     #endif
@@ -41,14 +39,14 @@ final class DropdownContentView: NSView {
     /// The active terminal's metrics; a Launcher Tab borrows another terminal's
     /// (or the last seen) so the Dropdown keeps its size.
     func cellMetrics() -> (cell: CGSize, padding: CGSize)? {
-        if let m = active?.view.cellMetrics() ?? tabs.lazy.compactMap({ $0.view.cellMetrics() }).first {
+        if let m = active?.view.cellMetrics() ?? list.items.lazy.compactMap({ $0.view.cellMetrics() }).first {
             lastMetrics = m
         }
         return lastMetrics
     }
     private var lastMetrics: (cell: CGSize, padding: CGSize)?
-    func isCommandTabActive(_ id: String) -> Bool { active?.kind == .command(id: id) }
-    private var active: Tab? { tabs.indices.contains(activeIndex) ? tabs[activeIndex] : nil }
+    func isCommandTabActive(_ id: String) -> Bool { list.isCommandTabActive(id) }
+    private var active: Tab? { list.active }
 
     init(ghostty: GhosttyApp) {
         self.ghostty = ghostty
@@ -66,19 +64,18 @@ final class DropdownContentView: NSView {
 
     @discardableResult
     func addShellTab() -> Tab {
-        shellCount += 1
-        return add(kind: .shell, title: "shell \(shellCount)", command: nil)
+        add(kind: .shell, title: list.nextShellTitle(), command: nil)
     }
 
     /// Focuses the first Shell Tab, creating one if none exists.
     func selectMainTab() {
-        if let i = tabs.firstIndex(where: { $0.kind == .shell }) { select(i) } else { addShellTab() }
+        if let i = list.firstShellIndex { select(i) } else { addShellTab() }
     }
 
     /// Opens the Command Tab for a binding, or focuses the existing one
     /// (at most one Command Tab per Command key).
     func openCommandTab(_ binding: CommandBinding) {
-        if let existing = tabs.firstIndex(where: { $0.kind == .command(id: binding.id) }) {
+        if let existing = list.index(ofCommand: binding.id) {
             select(existing)
             return
         }
@@ -139,31 +136,27 @@ final class DropdownContentView: NSView {
 
     private func insert(_ tab: Tab) {
         addSubview(tab.view)
-        tabs.append(tab)
+        list.append(tab)
         needsLayout = true
-        select(tabs.count - 1)
+        select(list.count - 1)
     }
 
     func select(_ index: Int) {
-        guard tabs.indices.contains(index) else { return }
-        activeIndex = index
+        guard list.select(index) else { return }
         applyVisibility()
         refreshBar()
-        if displayed { window?.makeFirstResponder(tabs[index].view.focusView) }
+        if displayed, let tab = active { window?.makeFirstResponder(tab.view.focusView) }
     }
 
     /// Drag-reorder: moves a Tab, keeping the same Tab active. Numbers and ⌘1–9 follow the new order.
     private func moveTab(from: Int, to: Int) {
-        guard tabs.indices.contains(from), tabs.indices.contains(to), from != to else { return }
-        let current = active
-        tabs.insert(tabs.remove(at: from), at: to)
-        activeIndex = current.flatMap { c in tabs.firstIndex { $0 === c } } ?? activeIndex
+        list.move(from: from, to: to)
         refreshBar()
     }
 
     private func applyVisibility() {
-        for (i, tab) in tabs.enumerated() {
-            let isActive = i == activeIndex
+        for (i, tab) in list.items.enumerated() {
+            let isActive = i == list.activeIndex
             tab.view.alphaValue = isActive ? 1 : 0
             tab.view.setOccluded(!(isActive && displayed))
             tab.view.setFocused(isActive && displayed)
@@ -177,32 +170,26 @@ final class DropdownContentView: NSView {
         if displayed, let tab = active { window?.makeFirstResponder(tab.view.focusView) }
     }
 
-    func selectNext() { if !tabs.isEmpty { select((activeIndex + 1) % tabs.count) } }
-    func selectPrevious() { if !tabs.isEmpty { select((activeIndex - 1 + tabs.count) % tabs.count) } }
+    func selectNext() { list.selectNext(); select(list.activeIndex) }
+    func selectPrevious() { list.selectPrevious(); select(list.activeIndex) }
 
     func closeActive() {
         if let tab = active { close(tab) }
     }
 
     private func close(_ tab: Tab, exitedCleanly: Bool = false) {
-        guard let index = tabs.firstIndex(where: { $0 === tab }) else { return }
+        guard let removal = list.remove(tab) else { return }
         #if DEBUG
-        NSLog("TermLaunch[debug]: tab closed (%d left)", tabs.count - 1)
+        NSLog("TermLaunch[debug]: tab closed (%d left)", list.count)
         #endif
-        tabs.remove(at: index)
         tab.view.removeFromSuperview()
         if exitedCleanly, case .command = tab.kind { onCommandTabClosed?() }
-        if tabs.isEmpty {
-            shellCount = 0
+        guard let next = removal.nextActive else {
             refreshBar()
             needsLayout = true
             onEmpty?()
             return
         }
-        // Focus the previously adjacent Tab; keep the active one if another closed.
-        let next = index < activeIndex ? activeIndex - 1
-            : index == activeIndex ? min(index, tabs.count - 1)
-            : activeIndex
         needsLayout = true
         select(next)
     }
@@ -210,9 +197,9 @@ final class DropdownContentView: NSView {
     // MARK: Layout
 
     private func refreshBar() {
-        bar.titles = tabs.map(\.title)
-        bar.activeIndex = activeIndex
-        let show = tabs.count > 1
+        bar.titles = list.items.map(\.title)
+        bar.activeIndex = list.activeIndex
+        let show = list.count > 1
         if bar.isHidden == show { bar.isHidden = !show; needsLayout = true; onMetricsChanged?() }
     }
 
@@ -222,6 +209,6 @@ final class DropdownContentView: NSView {
         let barY = barOnTop ? bounds.height - barHeight : 0
         bar.frame = NSRect(x: 0, y: barY, width: bounds.width, height: barHeight)
         let area = NSRect(x: 0, y: barOnTop ? 0 : barHeight, width: bounds.width, height: bounds.height - barHeight)
-        for tab in tabs { tab.view.frame = area }
+        for tab in list.items { tab.view.frame = area }
     }
 }

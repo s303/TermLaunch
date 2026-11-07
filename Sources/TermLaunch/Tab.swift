@@ -16,11 +16,8 @@ extension GhosttySurfaceView: TabContent {
 
 /// One Tab in the Dropdown. Shell Tabs run the default shell; Command Tabs
 /// run a bound command (see Config) and are unique per command.
-final class Tab {
-    enum Kind: Equatable {
-        case shell
-        case command(id: String)
-    }
+final class Tab: TabListEntry {
+    typealias Kind = TabKind
 
     let kind: Kind
     let view: TabContent
