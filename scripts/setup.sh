@@ -3,7 +3,8 @@
 # Needs full Xcode (Metal toolchain + xcodebuild) and Homebrew.
 set -euo pipefail
 
-GHOSTTY_COMMIT="6ba144158577d033ccb6ed4b574e4013957c9161"
+# Release v1.4.0
+GHOSTTY_COMMIT="83fb95624b0439ee660c2679b43b38c8b63769cd"
 GHOSTTY_REPO="https://github.com/ghostty-org/ghostty.git"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
