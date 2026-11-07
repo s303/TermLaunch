@@ -202,9 +202,21 @@ final class GhosttyApp {
         alert.informativeText = String(text.prefix(600)) + (text.count > 600 ? "…" : "")
         alert.addButton(withTitle: "Paste")
         alert.addButton(withTitle: "Cancel")
-        DropdownPanel.suppressHideOnResign = true
-        defer { DropdownPanel.suppressHideOnResign = false }
-        return alert.runModal() == .alertFirstButtonReturn
+        return ModalGuard.run { alert.runModal() } == .alertFirstButtonReturn
+    }
+}
+
+/// Tracks a modal dialog (paste confirmation) that owns focus, so the
+/// Dropdown doesn't hide when it loses key status to the dialog. An explicit
+/// flag rather than `NSApp.modalWindow`, which isn't guaranteed to be set yet
+/// when the panel's `resignKey` fires as the alert becomes key.
+enum ModalGuard {
+    private(set) static var isActive = false
+
+    static func run<T>(_ body: () -> T) -> T {
+        isActive = true
+        defer { isActive = false }
+        return body()
     }
 }
 

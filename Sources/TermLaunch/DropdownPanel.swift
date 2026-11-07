@@ -48,13 +48,9 @@ final class DropdownPanel: NSPanel {
         return true
     }
 
-    /// Set while a modal dialog (paste confirmation) owns focus, so losing key
-    /// status doesn't hide the Dropdown out from under it.
-    static var suppressHideOnResign = false
-
     override func resignKey() {
         super.resignKey()
-        if !Self.suppressHideOnResign { onResignKey?() }
+        if !ModalGuard.isActive { onResignKey?() }
     }
 
     var isShown: Bool { isVisible && alphaValue > 0 }
