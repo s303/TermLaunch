@@ -35,7 +35,7 @@ targets:
       path: Sources/TermLaunch/Info.plist
       properties:
         CFBundleName: TermLaunch
-        CFBundleShortVersionString: "0.26"
+        CFBundleShortVersionString: "0.27"
         CFBundleVersion: "4"
         LSUIElement: true
         LSMinimumSystemVersion: "14.0"
