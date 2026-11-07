@@ -1,6 +1,7 @@
 import AppKit
 
 // Menu bar, status item and Dock icon for AppDelegate.
+@MainActor
 extension AppDelegate {
     @objc fileprivate func showAbout() { AboutWindowController.shared.show() }
 

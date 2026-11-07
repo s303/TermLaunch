@@ -2,6 +2,7 @@ import AppKit
 
 /// Window mode's normal window. It hosts the same content view as the Dropdown;
 /// closing it leaves Window mode rather than closing anything.
+@MainActor
 final class TermWindow: NSWindow, NSWindowDelegate {
     var onCloseRequested: (() -> Void)?
     var onVisibilityChanged: ((Bool) -> Void)?

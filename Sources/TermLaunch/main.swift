@@ -1,6 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var statusItem: NSStatusItem?
     private var ghostty: GhosttyApp?
@@ -332,7 +333,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Window mode, Window not active: the Dropdown takes the Tabs over for a moment.
     private func beginTempConsole() {
-        guard let panel, let content, let window = termWindow else { return }
+        guard panel != nil, let content, let window = termWindow else { return }
         // A regular app's panel only keeps key status while the app is active.
         let previousApp = NSWorkspace.shared.frontmostApplication.flatMap {
             $0 == NSRunningApplication.current ? nil : $0

@@ -1,6 +1,7 @@
 import AppKit
 import XCTest
 
+@MainActor
 final class ChordControllerTests: XCTestCase {
     private let y: UInt16 = 16
     private let x: UInt16 = 7

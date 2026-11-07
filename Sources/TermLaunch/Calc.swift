@@ -27,7 +27,7 @@ enum Calc {
     }
 
     private static let constants: [String: Double] = ["pi": .pi, "e": M_E]
-    private static let unary: [String: (Double) -> Double] = [
+    private static let unary: [String: @Sendable (Double) -> Double] = [
         "sqrt": { $0.squareRoot() }, "abs": { Swift.abs($0) }, "exp": { Foundation.exp($0) }, "ln": { Foundation.log($0) },
         "sin": { Foundation.sin($0) }, "cos": { Foundation.cos($0) }, "tan": { Foundation.tan($0) },
         "asin": { Foundation.asin($0) }, "acos": { Foundation.acos($0) }, "atan": { Foundation.atan($0) },
@@ -36,7 +36,7 @@ enum Calc {
         "floor": { $0.rounded(.down) }, "ceil": { $0.rounded(.up) }, "round": { $0.rounded() },
         "signum": { $0.isNaN ? .nan : ($0.sign == .minus ? -1 : 1) },
     ]
-    private static let variadic: [String: ([Double]) -> Double?] = [
+    private static let variadic: [String: @Sendable ([Double]) -> Double?] = [
         "min": { $0.min() }, "max": { $0.max() }, "atan2": { $0.count == 2 ? Foundation.atan2($0[0], $0[1]) : nil },
     ]
 

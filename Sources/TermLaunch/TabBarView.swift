@@ -3,6 +3,7 @@ import AppKit
 /// Kitty-style tab strip: content-sized `N. title` tabs joined by a separator, the active
 /// one a solid block. Colors and font come from the Ghostty theme (see `[tabbar]` overrides);
 /// tabs can be dragged sideways to reorder.
+@MainActor
 final class TabBarView: NSView {
     static let maxCells: CGFloat = 24
     static let minCells: CGFloat = 8

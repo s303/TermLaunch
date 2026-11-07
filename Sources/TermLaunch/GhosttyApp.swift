@@ -6,7 +6,12 @@ import GhosttyKit
 /// reach the view only through this retained handle's weak reference (and
 /// only on the main thread). The view releases the handle after freeing the
 /// surface.
-final class SurfaceHandle {
+///
+/// `@unchecked Sendable`: `surface` is guarded by `lock` and `exitFilePath` is
+/// immutable. `view` is not synchronised, so it must only be read or written
+/// on the main thread (callbacks read it inside their `DispatchQueue.main.async`
+/// hop; `GhosttySurfaceView` sets it in its main-actor init).
+final class SurfaceHandle: @unchecked Sendable {
     weak var view: GhosttySurfaceView?
     /// Copies the view's values that callbacks read off the main thread.
     let exitFilePath: String?
@@ -23,8 +28,15 @@ final class SurfaceHandle {
     }
 }
 
+/// libghostty's opaque per-request token, carried to the main queue and handed
+/// back untouched. `@unchecked Sendable`: it is never dereferenced here.
+private struct ClipboardRequest: @unchecked Sendable {
+    let state: UnsafeMutableRawPointer?
+}
+
 /// Owns the single `ghostty_app_t`. The C callbacks below capture nothing and
 /// hop to the main thread.
+@MainActor
 final class GhosttyApp {
     private(set) var app: ghostty_app_t?
     /// The terminal's `background` from the user's Ghostty config; Window mode paints its frame with it.
@@ -56,6 +68,22 @@ final class GhosttyApp {
         var runtime = ghostty_runtime_config_s()
         runtime.userdata = Unmanaged.passUnretained(self).toOpaque()
         runtime.supports_selection_clipboard = false
+        Self.installCallbacks(&runtime)
+
+        guard let app = ghostty_app_new(&runtime, config) else {
+            ghostty_config_free(config)
+            NSLog("ghostty_app_new failed")
+            return nil
+        }
+        ghostty_config_free(config)
+        self.app = app
+    }
+
+    /// The C callbacks run on arbitrary threads, so they are built in a nonisolated
+    /// context (closures made inside a `@MainActor` init would be inferred
+    /// `@MainActor`). Each captures nothing and hops to the main queue for
+    /// anything that touches AppKit or `GhosttyApp`/view state.
+    private nonisolated static func installCallbacks(_ runtime: inout ghostty_runtime_config_s) {
         runtime.wakeup_cb = { userdata in
             guard let userdata else { return }
             let box = Unmanaged<GhosttyApp>.fromOpaque(userdata)
@@ -117,7 +145,9 @@ final class GhosttyApp {
             }
             // Copy now; the pointers are only valid during this call.
             let text = String(decoding: UnsafeBufferPointer(start: UnsafeRawPointer(data).assumingMemoryBound(to: UInt8.self), count: contents[0].len), as: UTF8.self)
+            let request = ClipboardRequest(state: state)
             DispatchQueue.main.async {
+                let state = request.state
                 let ok = GhosttyApp.confirmPaste(text)
                 // The Tab may have closed while the dialog was up.
                 guard let surface = handle.surface else { return }
@@ -146,17 +176,9 @@ final class GhosttyApp {
             let handle = Unmanaged<SurfaceHandle>.fromOpaque(userdata).takeUnretainedValue()
             DispatchQueue.main.async { handle.view?.surfaceDidClose() }
         }
-
-        guard let app = ghostty_app_new(&runtime, config) else {
-            ghostty_config_free(config)
-            NSLog("ghostty_app_new failed")
-            return nil
-        }
-        ghostty_config_free(config)
-        self.app = app
     }
 
-    deinit {
+    isolated deinit {
         if let app { ghostty_app_free(app) }
     }
 
@@ -175,7 +197,7 @@ final class GhosttyApp {
     // MARK: Clipboard helpers
 
     /// Completes a pending clipboard read with plain text.
-    static func complete(surface: ghostty_surface_t, text: String, state: UnsafeMutableRawPointer?, confirmed: Bool) {
+    nonisolated static func complete(surface: ghostty_surface_t, text: String, state: UnsafeMutableRawPointer?, confirmed: Bool) {
         let bytes = Array(text.utf8)
         bytes.withUnsafeBufferPointer { buf in
             "text/plain".withCString { mime in
@@ -210,6 +232,7 @@ final class GhosttyApp {
 /// Dropdown doesn't hide when it loses key status to the dialog. An explicit
 /// flag rather than `NSApp.modalWindow`, which isn't guaranteed to be set yet
 /// when the panel's `resignKey` fires as the alert becomes key.
+@MainActor
 enum ModalGuard {
     private(set) static var isActive = false
 

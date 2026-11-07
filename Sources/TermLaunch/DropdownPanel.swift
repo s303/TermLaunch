@@ -2,6 +2,7 @@ import AppKit
 
 /// The Dropdown: one borderless panel anchored to the top edge of the screen
 /// under the mouse cursor, sized as a fraction of that screen.
+@MainActor
 final class DropdownPanel: NSPanel {
     var columns = 120
     var rows = 30
@@ -85,8 +86,11 @@ final class DropdownPanel: NSPanel {
         alphaValue = 0
         orderFrontRegardless()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
-            guard let self, self.alphaValue == 0 else { return }
-            self.orderOut(nil)
+            // AppKit calls the completion handler on the main thread.
+            MainActor.assumeIsolated {
+                guard let self, self.alphaValue == 0 else { return }
+                self.orderOut(nil)
+            }
         }
     }
 
@@ -127,8 +131,11 @@ final class DropdownPanel: NSPanel {
             ctx.duration = fadeDuration
             animator().alphaValue = 0
         }, completionHandler: { [weak self] in
-            guard let self, self.alphaValue == 0 else { return }
-            self.orderOut(nil)
+            // AppKit calls the completion handler on the main thread.
+            MainActor.assumeIsolated {
+                guard let self, self.alphaValue == 0 else { return }
+                self.orderOut(nil)
+            }
         })
     }
 

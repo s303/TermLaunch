@@ -3,6 +3,7 @@ import Foundation
 /// Calls `onChange` (on the main queue, debounced) when the config file is
 /// edited. Watches the file itself for in-place writes and its directory for
 /// atomic replaces (rename-over), re-arming the file watch each time.
+@MainActor
 final class ConfigWatcher {
     private let fileURL: URL
     private let onChange: () -> Void
@@ -17,7 +18,7 @@ final class ConfigWatcher {
         watchFile()
     }
 
-    deinit {
+    isolated deinit {
         fileSource?.cancel()
         dirSource?.cancel()
         pending?.cancel()

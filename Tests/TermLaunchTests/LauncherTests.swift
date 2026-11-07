@@ -1,5 +1,6 @@
 import XCTest
 
+@MainActor
 final class CalcTests: XCTestCase {
     func testFormat() {
         XCTAssertEqual(Calc.format(2), "2")
@@ -144,6 +145,7 @@ final class FuzzyScorerTests: XCTestCase {
     }
 }
 
+@MainActor
 final class LauncherModelTests: XCTestCase {
     private final class Fixed: LauncherProvider {
         let rows: [String: [String]]

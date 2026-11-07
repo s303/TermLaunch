@@ -2,6 +2,7 @@ import AppKit
 
 /// The Launcher Tab: a search field at the bottom and results growing upward,
 /// best match nearest the field (like `oa`). Rows come from the providers.
+@MainActor
 final class LauncherView: NSView, TabContent, NSTextFieldDelegate {
     /// An item ran or the user cancelled: the owner closes the Tab.
     var onFinish: (() -> Void)?
@@ -49,13 +50,13 @@ final class LauncherView: NSView, TabContent, NSTextFieldDelegate {
 
         indexObserver = NotificationCenter.default.addObserver(
             forName: AppIndex.didChange, object: index, queue: .main
-        ) { [weak self] _ in self?.reload() }
+        ) { [weak self] _ in MainActor.assumeIsolated { self?.reload() } } // queue: .main
         reload()
     }
 
     required init?(coder: NSCoder) { fatalError("not supported") }
 
-    deinit { if let indexObserver { NotificationCenter.default.removeObserver(indexObserver) } }
+    isolated deinit { if let indexObserver { NotificationCenter.default.removeObserver(indexObserver) } }
 
     // MARK: TabContent
 
@@ -132,6 +133,7 @@ final class LauncherView: NSView, TabContent, NSTextFieldDelegate {
 
 /// The search field: tints the caret and handles ⌘C/V/X/A/Z itself, since the
 /// Dropdown has no Edit menu to route them.
+@MainActor
 private final class SearchField: NSTextField {
     var insertionColor: NSColor = .white
 
@@ -159,6 +161,7 @@ private final class SearchField: NSTextField {
 
 /// Draws the visible rows bottom-up: row 0 (the best match) sits on the search
 /// field. The window scrolls only when the selection reaches its top row.
+@MainActor
 private final class ResultListView: NSView {
     var onActivate: (() -> Void)?
     private let model: LauncherModel

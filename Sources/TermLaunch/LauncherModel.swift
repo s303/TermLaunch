@@ -7,15 +7,17 @@ struct LauncherItem {
     var iconPath: String? = nil
     /// Short right-aligned note, e.g. "⏎ copy".
     var hint: String? = nil
-    let run: () -> Void
+    let run: @MainActor () -> Void
 }
 
 /// A source of Launcher rows. Every provider sees every query; `[]` means no answer.
+@MainActor
 protocol LauncherProvider: AnyObject {
     func results(for query: String) -> [LauncherItem]
 }
 
 /// The Launcher's query, rows and selection, independent of the view.
+@MainActor
 final class LauncherModel {
     /// In display priority: earlier providers' rows rank above later ones'.
     let providers: [LauncherProvider]

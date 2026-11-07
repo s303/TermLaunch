@@ -3,6 +3,7 @@ import AppKit
 /// Every installed app, kept current for the whole app session: a live
 /// Spotlight query (like `mdfind`, so installs and removals show up), merged
 /// with a scan of the standard folders for when Spotlight is off or indexing.
+@MainActor
 final class AppIndex {
     /// Posted on the main queue when the app list changes.
     static let didChange = Notification.Name("TermLaunchAppIndexDidChange")
@@ -19,19 +20,19 @@ final class AppIndex {
         query.searchScopes = [NSMetadataQueryLocalComputerScope]
         let center = NotificationCenter.default
         for name in [Notification.Name.NSMetadataQueryDidFinishGathering, .NSMetadataQueryDidUpdate] {
-            center.addObserver(forName: name, object: query, queue: .main) { [weak self] _ in self?.rebuild() }
+            center.addObserver(forName: name, object: query, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.rebuild() } } // queue: .main
         }
         query.start()
         DispatchQueue.global(qos: .utility).async { [weak self] in
             let found = Self.scanFolders()
-            DispatchQueue.main.async {
+            DispatchQueue.main.async { [weak self] in
                 self?.scanned = found
                 self?.rebuild()
             }
         }
     }
 
-    deinit { query.stop() }
+    isolated deinit { query.stop() }
 
     /// Main thread only (reads the query results).
     private func rebuild() {
@@ -51,7 +52,7 @@ final class AppIndex {
         // Info.plist reads happen off the main thread.
         DispatchQueue.global(qos: .utility).async { [weak self] in
             let checked = misses.map { ($0, Self.isLaunchTarget($0)) }
-            DispatchQueue.main.async {
+            DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
                 for (path, result) in checked { self.launchable[path] = result }
                 // A newer rebuild is in flight (or already published); it covers these paths.
@@ -67,7 +68,7 @@ final class AppIndex {
 
     /// Whether a bundle Spotlight reports belongs in the launcher. Reads the
     /// Info.plist, so callers should cache the answer per path.
-    static func isLaunchTarget(_ path: String) -> Bool {
+    nonisolated static func isLaunchTarget(_ path: String) -> Bool {
         let fm = FileManager.default
         // iOS apps on Apple Silicon: a wrapper with no Contents/.
         if fm.fileExists(atPath: path + "/WrappedBundle/Info.plist") { return isLaunchTarget(path, info: [:]) }
@@ -79,7 +80,7 @@ final class AppIndex {
 
     /// The rules, given the bundle's Info.plist: no system agents, helpers
     /// tucked under a Library/, background-only apps, or Xcode build copies.
-    static func isLaunchTarget(_ path: String, info: [String: Any]) -> Bool {
+    nonisolated static func isLaunchTarget(_ path: String, info: [String: Any]) -> Bool {
         if path.hasPrefix("/System/Library/") {
             return path.hasPrefix("/System/Library/CoreServices/Applications/")
                 || path == "/System/Library/CoreServices/Finder.app"
@@ -91,7 +92,7 @@ final class AppIndex {
         return !flag(info["LSBackgroundOnly"])
     }
 
-    private static func flag(_ value: Any?) -> Bool {
+    nonisolated private static func flag(_ value: Any?) -> Bool {
         switch value {
         case let b as Bool: return b
         case let n as NSNumber: return n.boolValue
@@ -100,7 +101,7 @@ final class AppIndex {
         }
     }
 
-    private static func scanFolders() -> [AppEntry] {
+    nonisolated private static func scanFolders() -> [AppEntry] {
         let fm = FileManager.default
         let roots = ["/Applications", NSHomeDirectory() + "/Applications", "/System/Applications"]
         var found: [AppEntry] = []
@@ -119,6 +120,7 @@ final class AppIndex {
 }
 
 /// Launcher rows for apps: fuzzy match × frecency; Enter opens the app.
+@MainActor
 final class AppProvider: LauncherProvider {
     private let index: AppIndex
     private var frecency = FrecencyStore()

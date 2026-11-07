@@ -1,6 +1,7 @@
 import AppKit
 
 /// What a Tab shows: a terminal surface or the built-in Launcher.
+@MainActor
 protocol TabContent: NSView {
     /// Cell size and padding in points; nil for content that is not a terminal grid.
     func cellMetrics() -> (cell: CGSize, padding: CGSize)?
@@ -16,6 +17,7 @@ extension GhosttySurfaceView: TabContent {
 
 /// One Tab in the Dropdown. Shell Tabs run the default shell; Command Tabs
 /// run a bound command (see Config) and are unique per command.
+@MainActor
 final class Tab: TabListEntry {
     typealias Kind = TabKind
 

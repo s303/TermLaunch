@@ -3,7 +3,8 @@ import GhosttyKit
 
 /// One terminal surface. All terminals stay mounted (toggle opacity/focus)
 /// rather than being re-hosted, to avoid Metal drawable flicker.
-final class GhosttySurfaceView: NSView, NSTextInputClient {
+@MainActor
+final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient {
     private let ghostty: GhosttyApp
     private let command: String?
     private let workingDirectory: String?
@@ -47,7 +48,7 @@ final class GhosttySurfaceView: NSView, NSTextInputClient {
 
     required init?(coder: NSCoder) { fatalError("not supported") }
 
-    deinit {
+    isolated deinit {
         // The one place the surface is freed. Clear the handle first so callbacks
         // already in flight see no surface.
         handle.surface = nil

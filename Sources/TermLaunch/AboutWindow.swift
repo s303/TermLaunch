@@ -2,6 +2,7 @@ import AppKit
 
 /// Old-school demo-scene About box: copper bars, starfield, a spinning
 /// extruded vector "MIK" and a sine scroller.
+@MainActor
 final class AboutWindowController: NSWindowController, NSWindowDelegate {
     static let shared = AboutWindowController()
 
@@ -129,8 +130,11 @@ private final class DemoView: NSView {
     func start() {
         guard timer == nil else { return }
         let timer = Timer(timeInterval: 1 / 60, repeats: true) { [weak self] _ in
-            self?.t += 1 / 60
-            self?.needsDisplay = true
+            // Scheduled on the main run loop, so this runs on the main thread.
+            MainActor.assumeIsolated {
+                self?.t += 1 / 60
+                self?.needsDisplay = true
+            }
         }
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer

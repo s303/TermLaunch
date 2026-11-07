@@ -2,12 +2,16 @@ import AppKit
 
 /// Owns a Chord window's `ChordKeys`, its duration and its timer. Shared by the Dropdown
 /// and the Window so both behave identically; holds no window references.
+@MainActor
 final class ChordController {
     /// Runs the closure after the delay and returns a cancel function. Injectable for tests.
-    typealias Scheduler = (TimeInterval, @escaping () -> Void) -> () -> Void
+    typealias Scheduler = @MainActor (TimeInterval, @escaping @MainActor @Sendable () -> Void) -> () -> Void
 
     static let timerScheduler: Scheduler = { delay, fire in
-        let timer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { _ in fire() }
+        let timer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { _ in
+            // Scheduled from the main thread, so the timer fires on the main run loop.
+            MainActor.assumeIsolated { fire() }
+        }
         return { timer.invalidate() }
     }
 

@@ -2,6 +2,7 @@ import AppKit
 
 /// Holds every Tab's surface (all stay mounted; only the active one is
 /// visible and unoccluded) plus the tab bar, which hides for a single Tab.
+@MainActor
 final class DropdownContentView: NSView {
     private let ghostty: GhosttyApp
     /// Started with the app so the Launcher opens on a warm index.
