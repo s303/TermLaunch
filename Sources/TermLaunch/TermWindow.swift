@@ -9,30 +9,11 @@ final class TermWindow: NSWindow, NSWindowDelegate {
 
     // Chord window: after the Activation key, a Command key runs its command in the Window.
     // Any other key ends the window and is delivered to the terminal as usual.
-    var chord = ChordKeys()
-    var chordWindow: TimeInterval = 0.3
+    let chord = ChordController()
     var onCommandKey: ((String) -> Void)?
-    private var chordTimer: Timer?
-
-    func beginChord() {
-        chordTimer?.invalidate()
-        chordTimer = nil
-        guard chordWindow > 0, chord.begin() else { return }
-        chordTimer = Timer.scheduledTimer(withTimeInterval: chordWindow, repeats: false) { [weak self] _ in
-            self?.chordTimer = nil
-            self?.chord.end()
-        }
-    }
 
     override func sendEvent(_ event: NSEvent) {
-        let result: ChordKeys.Result
-        switch event.type {
-        case .keyDown: result = chord.keyDown(keyCode: event.keyCode, modifiers: event.modifierFlags)
-        case .keyUp: result = chord.keyUp(keyCode: event.keyCode)
-        default: result = .pass
-        }
-        if !chord.isActive { chordTimer?.invalidate(); chordTimer = nil }
-        switch result {
+        switch chord.handle(event) {
         case .pass: super.sendEvent(event)
         case .swallow: break
         case .command(let key): onCommandKey?(key)
@@ -66,6 +47,10 @@ final class TermWindow: NSWindow, NSWindowDelegate {
         DispatchQueue.main.async { [weak self] in self?.onCloseRequested?() }
         return false
     }
+
+    /// Held keys' keyUps go elsewhere once we lose key status (Temporary console, leaving
+    /// Window mode, another app); forget them or the next press of that key is swallowed.
+    func windowDidResignKey(_ notification: Notification) { chord.reset() }
 
     func windowDidMiniaturize(_ notification: Notification) { onVisibilityChanged?(false) }
     func windowDidDeminiaturize(_ notification: Notification) { onVisibilityChanged?(true) }

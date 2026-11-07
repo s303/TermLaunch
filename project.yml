@@ -57,6 +57,7 @@ targets:
       - Sources/TermLaunch/ShellCommand.swift
       - Sources/TermLaunch/Presentation.swift
       - Sources/TermLaunch/ChordKeys.swift
+      - Sources/TermLaunch/ChordController.swift
       - Sources/TermLaunch/LauncherKeys.swift
       - Sources/TermLaunch/TerminalShortcut.swift
       - Sources/TermLaunch/TabShortcut.swift

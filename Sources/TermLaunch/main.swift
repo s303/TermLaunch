@@ -106,6 +106,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: Config
 
+    /// Dropdown and Window get identical chord config. The Dropdown needs the Activation key
+    /// too: as the Temporary console the app is active, so the hotkey's keyDown also reaches
+    /// the panel and would end the Chord window it just started (and type into the terminal).
+    private func applyChordConfig(_ cfg: Config) {
+        panel?.chord.apply(cfg)
+        termWindow?.chord.apply(cfg)
+    }
+
     @objc func reloadConfigAction() { reloadConfig(initial: false) }
 
     private func reloadConfig(initial: Bool) {
@@ -121,14 +129,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             panel.rows = cfg.rows
             panel.fadeDuration = TimeInterval(cfg.fadeMs) / 1000
             panel.edge = cfg.edge
-            panel.chordWindow = TimeInterval(cfg.chordWindowMs) / 1000
-            panel.chord.commandKeys = Set(cfg.commands.compactMap(\.key))
         }
-        if let termWindow {
-            termWindow.chordWindow = TimeInterval(cfg.chordWindowMs) / 1000
-            termWindow.chord.commandKeys = Set(cfg.commands.compactMap(\.key))
-            termWindow.chord.activationKey = KeySpec.parse(cfg.activation)
-        }
+        applyChordConfig(cfg)
         content?.tabBarStyle = cfg.tabBar
         if windowMode { NSApp.mainMenu = makeMainMenu() }
         hotKey = nil // unregisters the old one
@@ -216,7 +218,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         panel.show()
         if tempConsole { reassertConsoleKey() }
         content.setDisplayed(true)
-        if startChord { panel.beginChord() }
+        if startChord { panel.chord.begin() }
     }
 
     private func hideDropdown() {
@@ -236,7 +238,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             content?.selectMainTab() // the Activation key always lands on the main Shell Tab
             showDropdown(startChord: true)
         case .windowChord:
-            termWindow?.beginChord()
+            termWindow?.chord.begin()
         default:
             break
         }
@@ -264,9 +266,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.onCloseRequested = { [weak self] in self?.leaveWindowMode() }
         window.onTabShortcut = { [weak self] in self?.handle($0) }
         window.onCommandKey = { [weak self] key in self?.runCommand(key: key) }
-        window.chordWindow = TimeInterval(config.chordWindowMs) / 1000
-        window.chord.commandKeys = Set(config.commands.compactMap(\.key))
-        window.chord.activationKey = KeySpec.parse(config.activation)
+        window.chord.apply(config)
         window.onVisibilityChanged = { [weak self] visible in
             guard let self, self.windowMode, !self.tempConsole else { return }
             self.content?.setDisplayed(visible)

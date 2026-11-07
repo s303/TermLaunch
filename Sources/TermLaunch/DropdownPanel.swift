@@ -13,10 +13,8 @@ final class DropdownPanel: NSPanel {
 
     // Chord window: after the Dropdown is shown, a Command key opens its command.
     // Any other key ends the window and is delivered to the terminal as usual.
-    var chord = ChordKeys()
-    var chordWindow: TimeInterval = 0.3
+    let chord = ChordController()
     var onCommandKey: ((String) -> Void)?
-    private var chordTimer: Timer?
     var onResignKey: (() -> Void)?
 
     init() {
@@ -107,30 +105,8 @@ final class DropdownPanel: NSPanel {
         }
     }
 
-    func beginChord() {
-        endChord()
-        guard chordWindow > 0, chord.begin() else { return }
-        chordTimer = Timer.scheduledTimer(withTimeInterval: chordWindow, repeats: false) { [weak self] _ in
-            self?.chordTimer = nil
-            self?.chord.end()
-        }
-    }
-
-    private func endChord() {
-        chordTimer?.invalidate()
-        chordTimer = nil
-        chord.end()
-    }
-
     override func sendEvent(_ event: NSEvent) {
-        let result: ChordKeys.Result
-        switch event.type {
-        case .keyDown: result = chord.keyDown(keyCode: event.keyCode, modifiers: event.modifierFlags)
-        case .keyUp: result = chord.keyUp(keyCode: event.keyCode)
-        default: result = .pass
-        }
-        if !chord.isActive { chordTimer?.invalidate(); chordTimer = nil }
-        switch result {
+        switch chord.handle(event) {
         case .pass: super.sendEvent(event)
         case .swallow: break
         case .command(let key): onCommandKey?(key)
@@ -139,14 +115,12 @@ final class DropdownPanel: NSPanel {
 
     /// Hides without the fade, for handing the content to the Window.
     func hideImmediately() {
-        endChord()
         chord.reset()
         alphaValue = 0
         orderOut(nil)
     }
 
     func hide() {
-        endChord()
         chord.reset() // keyUps for held keys won't reach us once hidden
         guard isVisible else { return }
         NSAnimationContext.runAnimationGroup({ ctx in
