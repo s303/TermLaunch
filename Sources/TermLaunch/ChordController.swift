@@ -61,7 +61,9 @@ final class ChordController {
     }
 
     func handle(_ event: NSEvent) -> ChordKeys.Result {
-        handle(type: event.type, keyCode: event.keyCode, modifiers: event.modifierFlags)
+        // `keyCode` raises on non-key events (scroll, mouse), which would drop them.
+        guard event.type == .keyDown || event.type == .keyUp else { return .pass }
+        return handle(type: event.type, keyCode: event.keyCode, modifiers: event.modifierFlags)
     }
 
     func handle(type: NSEvent.EventType, keyCode: UInt16, modifiers: NSEvent.ModifierFlags) -> ChordKeys.Result {
