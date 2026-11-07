@@ -2,22 +2,34 @@ import AppKit
 import Carbon.HIToolbox
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
-    private var statusItem: NSStatusItem?
+    var statusItem: NSStatusItem?
     private var ghostty: GhosttyApp?
     private var panel: DropdownPanel?
-    private var content: DropdownContentView?
+    var content: DropdownContentView?
     private var hotKey: HotKey?
     private var commandHotKeys: [HotKey] = []
     private var windowKeySpec: KeySpec?
     private var windowKeyMonitor: Any?
-    private var config = Config()
+    var config = Config()
     private var configWatcher: ConfigWatcher?
     // Window mode: the Tabs live in `termWindow`; the Dropdown then only shows as a Temporary console.
     private var termWindow: TermWindow?
-    private var windowMode = false
-    private var tempConsole = false
-    private var previousApp: NSRunningApplication?
-    private let loginItemEntry = NSMenuItem(title: "Launch at Login", action: nil, keyEquivalent: "")
+    /// Where the Tabs are shown. `returnTo` is the app to hand focus back to when the Temporary console ends.
+    enum Mode {
+        case dropdown
+        case window
+        case windowWithConsole(returnTo: NSRunningApplication?)
+    }
+    private var mode = Mode.dropdown
+    private var windowMode: Bool {
+        if case .dropdown = mode { return false }
+        return true
+    }
+    private var tempConsole: Bool {
+        if case .windowWithConsole = mode { return true }
+        return false
+    }
+    let loginItemEntry = NSMenuItem(title: "Launch at Login", action: nil, keyEquivalent: "")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard let ghostty = GhosttyApp() else {
@@ -94,7 +106,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: Config
 
-    @objc private func reloadConfigAction() { reloadConfig(initial: false) }
+    @objc func reloadConfigAction() { reloadConfig(initial: false) }
 
     private func reloadConfig(initial: Bool) {
         let (loaded, warnings) = Config.load()
@@ -142,14 +154,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
               cfg.commands.count, commandHotKeys.count)
     }
 
-    @objc private func openConfig() {
+    @objc func openConfig() {
         _ = Config.load() // ensures the file exists
         NSWorkspace.shared.open(Config.path)
     }
 
     // MARK: Dropdown
 
-    private func handle(_ shortcut: TabShortcut) {
+    func handle(_ shortcut: TabShortcut) {
         switch shortcut {
         case .new: content?.addShellTab()
         case .close: content?.closeActive()
@@ -280,10 +292,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         termWindow = window
         content.setDisplayed(false)
         panel.hideImmediately()
-        panel.contentView = NSView()
-        window.contentView = content
-        content.barOnTop = true
-        windowMode = true
+        mountContent(inWindow: true)
+        mode = .window
         NSApp.setActivationPolicy(.regular)
         NSApp.applicationIconImage = Self.dockIcon
         NSApp.mainMenu = makeMainMenu()
@@ -293,18 +303,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         content.setDisplayed(true)
     }
 
-    private func leaveWindowMode() {
+    /// Reparents the shared content view between the Window and the Dropdown panel,
+    /// leaving a placeholder behind in the other one.
+    private func mountContent(inWindow: Bool) {
+        guard let panel, let content else { return }
+        if inWindow {
+            panel.contentView = NSView()
+            termWindow?.contentView = content
+        } else {
+            termWindow?.contentView = NSView()
+            panel.contentView = content
+        }
+        content.barOnTop = inWindow
+    }
+
+    func leaveWindowMode() {
         guard let panel, let content, windowMode else { return }
-        windowMode = false
-        tempConsole = false
+        mode = .dropdown
         content.setDisplayed(false)
         panel.hideImmediately()
         termWindow?.alphaValue = 1
         termWindow?.ignoresMouseEvents = false
-        termWindow?.contentView = NSView()
+        mountContent(inWindow: false)
         termWindow?.close() // also drops a minimised window's Dock tile
-        content.barOnTop = false
-        panel.contentView = content
         NSApp.mainMenu = nil
         NSApp.setActivationPolicy(.accessory)
     }
@@ -312,16 +333,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Window mode, Window not active: the Dropdown takes the Tabs over for a moment.
     private func beginTempConsole() {
         guard let panel, let content, let window = termWindow else { return }
-        tempConsole = true
         // A regular app's panel only keeps key status while the app is active.
-        previousApp = NSWorkspace.shared.frontmostApplication.flatMap {
+        let previousApp = NSWorkspace.shared.frontmostApplication.flatMap {
             $0 == NSRunningApplication.current ? nil : $0
         }
+        mode = .windowWithConsole(returnTo: previousApp)
         NSLog("TermLaunch: temporary console opened over %@", previousApp?.localizedName ?? "nothing")
         content.setDisplayed(false)
-        window.contentView = NSView()
-        content.barOnTop = false
-        panel.contentView = content
+        mountContent(inWindow: false)
         // Keep the window in place, only invisible: ordering it out and back makes window
         // managers (AeroSpace) lose track of it and misplace focus.
         window.alphaValue = 0
@@ -342,12 +361,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func endTempConsole() {
         guard let panel, let content, let window = termWindow else { return }
-        tempConsole = false
+        guard case .windowWithConsole(let previousApp) = mode else { return }
+        mode = .window
         content.setDisplayed(false)
         panel.hideImmediately()
-        panel.contentView = NSView()
-        window.contentView = content
-        content.barOnTop = true
+        mountContent(inWindow: true)
         window.alphaValue = 1
         window.ignoresMouseEvents = false
         content.setDisplayed(!window.isMiniaturized)
@@ -356,142 +374,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
               previousApp?.localizedName ?? "nothing",
               NSWorkspace.shared.frontmostApplication?.localizedName ?? "nothing")
         previousApp?.activate()
-        previousApp = nil
-    }
-
-    @objc private func showAbout() { AboutWindowController.shared.show() }
-
-    private func makeMainMenu() -> NSMenu {
-        let main = NSMenu()
-        func submenu(_ title: String) -> NSMenu {
-            let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-            let menu = NSMenu(title: title)
-            item.submenu = menu
-            main.addItem(item)
-            return menu
-        }
-        let app = submenu("TermLaunch")
-        func item(_ menu: NSMenu, _ title: String, _ action: Selector, _ key: String = "",
-                  _ mods: NSEvent.ModifierFlags = .command, target: AnyObject? = nil) {
-            let item = menu.addItem(withTitle: title, action: action, keyEquivalent: key)
-            item.keyEquivalentModifierMask = mods
-            item.target = target
-        }
-        item(app, "About TermLaunch", #selector(showAbout), target: self)
-        app.addItem(.separator())
-        item(app, "Settings…", #selector(openConfig), ",", target: self)
-        item(app, "Reload Config", #selector(reloadConfigAction), target: self)
-        app.addItem(.separator())
-        let services = NSMenu(title: "Services")
-        app.addItem(withTitle: "Services", action: nil, keyEquivalent: "").submenu = services
-        NSApp.servicesMenu = services
-        app.addItem(.separator())
-        item(app, "Hide TermLaunch", #selector(NSApplication.hide(_:)), "h", target: NSApp)
-        item(app, "Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option], target: NSApp)
-        item(app, "Show All", #selector(NSApplication.unhideAllApplications(_:)), target: NSApp)
-        app.addItem(.separator())
-        item(app, "Close Window", #selector(closeWindowMode), "q", target: self)
-        item(app, "Quit TermLaunch", #selector(NSApplication.terminate(_:)), target: NSApp)
-
-        let shell = submenu("Shell")
-        func add(to menu: NSMenu, _ title: String, _ key: String, _ mods: NSEvent.ModifierFlags, _ shortcut: TabShortcut) {
-            let item = NSMenuItem(title: title, action: #selector(tabMenuItem(_:)), keyEquivalent: key)
-            item.keyEquivalentModifierMask = mods
-            item.target = self
-            item.representedObject = TabShortcutBox(shortcut)
-            menu.addItem(item)
-        }
-        add(to: shell, "New Tab", "t", .command, .new)
-        add(to: shell, "Close Tab", "w", .command, .close)
-
-        let window = submenu("Window")
-        add(to: window, "Show Previous Tab", "[", [.command, .shift], .previous)
-        add(to: window, "Show Next Tab", "]", [.command, .shift], .next)
-
-        if !config.commands.isEmpty {
-            let commands = submenu("Commands")
-            let activation = KeySpec.parse(config.activation)?.displayString ?? config.activation
-            for binding in config.commands {
-                let item = NSMenuItem(title: binding.displayName, action: #selector(commandMenuItem(_:)), keyEquivalent: "")
-                item.target = self
-                item.representedObject = CommandBox(binding)
-                if let spec = binding.hotkey.flatMap(KeySpec.parse), let key = spec.menuKeyEquivalent {
-                    // Display only: the global hotkey is consumed before the menu sees the key.
-                    item.keyEquivalent = key
-                    item.keyEquivalentModifierMask = spec.nsModifiers
-                } else if binding.hotkey == nil, let key = binding.key, #available(macOS 14.4, *) {
-                    item.subtitle = "\(activation) then \(key)"
-                }
-                commands.addItem(item)
-            }
-        }
-        return main
-    }
-
-    private final class CommandBox {
-        let binding: CommandBinding
-        init(_ binding: CommandBinding) { self.binding = binding }
-    }
-
-    @objc private func commandMenuItem(_ sender: NSMenuItem) {
-        guard let box = sender.representedObject as? CommandBox else { return }
-        content?.openCommandTab(box.binding)
-    }
-
-    private final class TabShortcutBox {
-        let shortcut: TabShortcut
-        init(_ shortcut: TabShortcut) { self.shortcut = shortcut }
-    }
-
-    @objc private func tabMenuItem(_ sender: NSMenuItem) {
-        guard let box = sender.representedObject as? TabShortcutBox else { return }
-        handle(box.shortcut)
-    }
-
-    @objc private func closeWindowMode() { leaveWindowMode() }
-
-    /// The menu bar's `terminal` glyph on a terminal-coloured tile, for the Dock in Window mode.
-    private static let dockIcon: NSImage = {
-        let side: CGFloat = 512
-        return NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
-            let tile = rect.insetBy(dx: side * 0.09, dy: side * 0.09)
-            NSColor.black.setFill()
-            NSBezierPath(roundedRect: tile, xRadius: side * 0.18, yRadius: side * 0.18).fill()
-            let config = NSImage.SymbolConfiguration(pointSize: side * 0.42, weight: .regular)
-                .applying(.init(paletteColors: [.white]))
-            if let glyph = NSImage(systemSymbolName: "terminal", accessibilityDescription: nil)?.withSymbolConfiguration(config) {
-                let g = glyph.size
-                glyph.draw(in: NSRect(x: rect.midX - g.width / 2, y: rect.midY - g.height / 2, width: g.width, height: g.height))
-            }
-            return true
-        }
-    }()
-
-    private func installStatusItem() {
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        item.button?.image = NSImage(systemSymbolName: "terminal", accessibilityDescription: "TermLaunch")
-        let menu = NSMenu()
-        menu.addItem(withTitle: "Open Config", action: #selector(openConfig), keyEquivalent: "")
-        menu.addItem(withTitle: "Reload Config", action: #selector(reloadConfigAction), keyEquivalent: "")
-        menu.addItem(.separator())
-        loginItemEntry.action = #selector(toggleLoginItem)
-        menu.addItem(loginItemEntry)
-        menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit TermLaunch", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        for item in menu.items where item.action != #selector(NSApplication.terminate(_:)) { item.target = self }
-        menu.delegate = self
-        item.menu = menu
-        statusItem = item
-    }
-
-    @objc private func toggleLoginItem() {
-        LoginItem.setEnabled(!LoginItem.isEnabled)
-    }
-
-    func menuNeedsUpdate(_ menu: NSMenu) {
-        loginItemEntry.state = LoginItem.isEnabled ? .on : .off
-        loginItemEntry.title = LoginItem.needsApproval
-            ? "Launch at Login (approve in System Settings)" : "Launch at Login"
     }
 }
 
