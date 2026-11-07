@@ -32,3 +32,9 @@ final class Tab {
         self.title = title
     }
 }
+
+extension TabContent {
+    /// Inactive Tabs stay mounted at zero opacity; their views must not take
+    /// clicks or scrolls. Conformers' `hitTest` returns nil unless this holds.
+    var isTabVisible: Bool { alphaValue > 0 }
+}

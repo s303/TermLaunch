@@ -74,7 +74,7 @@ final class LauncherView: NSView, TabContent, NSTextFieldDelegate {
 
     /// Inactive Tabs stay mounted at zero opacity; they must not take clicks.
     override func hitTest(_ point: NSPoint) -> NSView? {
-        alphaValue == 0 ? nil : super.hitTest(point)
+        isTabVisible ? super.hitTest(point) : nil
     }
 
     // MARK: Layout
