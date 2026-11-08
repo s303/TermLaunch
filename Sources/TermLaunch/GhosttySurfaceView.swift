@@ -151,7 +151,11 @@ final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient {
     // MARK: Keyboard
 
     override func keyDown(with event: NSEvent) {
-        guard surface != nil else { return }
+        guard let surface else { return }
+        if let action = TerminalShortcut.scrollAction(for: event) {
+            _ = action.withCString { ghostty_surface_binding_action(surface, $0, UInt(action.utf8.count)) }
+            return
+        }
         keyTextAccumulator = []
         let hadMarked = markedText.length > 0
         // Routes through the input method; results arrive via insertText/setMarkedText.
@@ -171,6 +175,8 @@ final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient {
     }
 
     override func keyUp(with event: NSEvent) {
+        // The matching keyDown never reached the program.
+        if TerminalShortcut.scrollAction(for: event) != nil { return }
         sendKey(event, action: GHOSTTY_ACTION_RELEASE, text: nil, composing: false)
     }
 

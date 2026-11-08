@@ -112,4 +112,19 @@ final class TerminalShortcutTests: XCTestCase {
         XCTAssertNil(TerminalShortcut.action(for: key("c", 8, .command, type: .keyUp)))
         XCTAssertNil(TerminalShortcut.action(for: key("t", 17, .command))) // a Tab shortcut
     }
+
+    /// fn+↑/↓ arrive as Page Up/Down carrying the function (and numeric pad) flags.
+    func testPageKeysScrollTheScrollback() {
+        let fn: NSEvent.ModifierFlags = [.function, .numericPad]
+        XCTAssertEqual(TerminalShortcut.scrollAction(for: key("\u{F72C}", 116, fn)), "scroll_page_up")
+        XCTAssertEqual(TerminalShortcut.scrollAction(for: key("\u{F72D}", 121, fn)), "scroll_page_down")
+        XCTAssertEqual(TerminalShortcut.scrollAction(for: key("\u{F72C}", 116, [.function, .capsLock])), "scroll_page_up")
+        XCTAssertEqual(TerminalShortcut.scrollAction(for: key("\u{F72C}", 116, fn, type: .keyUp)), "scroll_page_up")
+    }
+
+    func testModifiedPageKeysGoToTheProgram() {
+        XCTAssertNil(TerminalShortcut.scrollAction(for: key("\u{F72C}", 116, [.function, .shift])))
+        XCTAssertNil(TerminalShortcut.scrollAction(for: key("\u{F72D}", 121, [.function, .control])))
+        XCTAssertNil(TerminalShortcut.scrollAction(for: key("\u{F700}", 126, .function))) // plain ↑
+    }
 }
