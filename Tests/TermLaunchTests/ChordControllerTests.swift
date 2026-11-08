@@ -74,6 +74,18 @@ final class ChordControllerTests: XCTestCase {
         XCTAssertTrue(c.isActive)
     }
 
+    /// Reading `keyCode` off a mouse event raises; the window's sendEvent would drop it
+    /// (no edge-drag resize, no clicks).
+    func testMouseEventPassesWithoutTouchingWindow() throws {
+        let c = make()
+        c.begin()
+        let mouse = try XCTUnwrap(NSEvent.mouseEvent(
+            with: .leftMouseDown, location: .zero, modifierFlags: [], timestamp: 0,
+            windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        XCTAssertEqual(c.handle(mouse), .pass)
+        XCTAssertTrue(c.isActive)
+    }
+
     func testNoWindowWithoutCommandKeysOrDuration() {
         let c = make()
         c.apply(commandKeys: [], activationKey: nil, chordWindow: 0.3)
