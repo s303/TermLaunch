@@ -37,6 +37,21 @@ BUILT="$ROOT/build/Build/Products/Release/$APP_NAME.app"
 ARCHS_FOUND="$(lipo -archs "$BUILT/Contents/MacOS/$APP_NAME")"
 [ "$ARCHS_FOUND" = "arm64" ] || { echo "error: expected arm64 only, got: $ARCHS_FOUND" >&2; exit 1; }
 
+# Re-sign with a stable self-signed identity. An ad-hoc signature changes with every
+# build, so macOS (TCC) re-asks for Desktop/Documents/App Management after each update;
+# a fixed certificate keeps the app's designated requirement, and its grants, stable.
+# Create it once in Keychain Access > Certificate Assistant > Create a Certificate
+# (Self-Signed Root, Code Signing). Keep the private key: a new one means one more prompt.
+SIGN_IDENTITY="${SIGN_IDENTITY:-TermLaunch Signing}"
+if ! security find-certificate -c "$SIGN_IDENTITY" >/dev/null 2>&1; then
+  echo "error: signing certificate \"$SIGN_IDENTITY\" not found in the keychain" >&2
+  exit 1
+fi
+codesign --force --sign "$SIGN_IDENTITY" --timestamp=none "$BUILT"
+codesign --verify --strict "$BUILT"
+codesign -d -r- "$BUILT" 2>&1 | grep -qE 'certificate (leaf|root)' \
+  || { echo "error: $BUILT is not signed with a certificate" >&2; exit 1; }
+
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
   "$BUILT/Contents/Info.plist" 2>/dev/null || echo 0.1)"
 ZIP="$DIST/$APP_NAME-$VERSION-arm64.zip"

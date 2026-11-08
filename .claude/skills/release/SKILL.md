@@ -16,7 +16,7 @@ Runs in an isolated subagent on Sonnet.
 - **Version:** if the first token looks like `N.NN` (e.g. `0.30`), it is the target version. Otherwise bump +0.01 from the current `MARKETING_VERSION`.
 - **Release notes:** everything after the version (or all of `$ARGUMENTS` if no version) is the notes, used verbatim as the GitHub release body. If empty, derive 1-3 lines from `git log --oneline v<previous>..HEAD`, excluding version-bump commits.
 
-Personal app: **no code signing or notarization** (deliberate). The repo is `/Users/s303/LocalProjects/TermLaunch`: `cd` there first, whatever the session's directory is. Stop at the first failure and report it.
+Personal app: **self-signed, no notarization** (deliberate). `scripts/package.sh` signs with the self-signed `TermLaunch Signing` certificate from the login keychain so macOS privacy grants survive updates; if it reports the certificate missing, stop and tell the user (never fall back to ad-hoc). The repo is `/Users/s303/LocalProjects/TermLaunch`: `cd` there first, whatever the session's directory is. Stop at the first failure and report it.
 
 Invoking this skill is the user's authorization for every step below, including the public GitHub release and the push to the tap. Do not ask for confirmation; the subagent cannot reach the user mid-run. Only the requested release is authorized: no force-pushes, no deleting tags or releases, nothing beyond these steps.
 
