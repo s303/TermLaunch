@@ -41,7 +41,7 @@ targets:
         LSMinimumSystemVersion: "14.0"
     settings:
       base:
-        MARKETING_VERSION: "0.29"  # single source: feeds CFBundleShortVersionString and CFBundleVersion
+        MARKETING_VERSION: "0.30"  # single source: feeds CFBundleShortVersionString and CFBundleVersion
         PRODUCT_BUNDLE_IDENTIFIER: dev.termlaunch.app
         ENABLE_HARDENED_RUNTIME: NO
         CODE_SIGN_STYLE: Automatic
