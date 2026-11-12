@@ -7,6 +7,10 @@ final class DropdownContentView: NSView {
     private let ghostty: GhosttyApp
     /// Started with the app so the Launcher opens on a warm index.
     private let appIndex = AppIndex()
+    /// Exchange rates, shared by every Launcher Tab and kept for the app session.
+    private let rateStore = RateStore()
+    /// `[launcher.currency]` from the config; read on each Launcher query.
+    var currency = CurrencySettings()
     private let bar = TabBarView()
     private var list = TabList<Tab>()
     /// Whether the Dropdown is on screen. Hidden surfaces are unfocused and occluded
@@ -98,7 +102,9 @@ final class DropdownContentView: NSView {
     }
 
     private func openLauncherTab(_ binding: CommandBinding) {
-        let view = LauncherView(index: appIndex, theme: ghostty.theme)
+        let view = LauncherView(
+            index: appIndex, rates: rateStore, currency: { [weak self] in self?.currency ?? CurrencySettings() },
+            theme: ghostty.theme)
         let tab = Tab(kind: .command(id: binding.id), view: view, title: binding.displayName)
         view.onFinish = { [weak self, weak tab] in
             guard let self, let tab else { return }

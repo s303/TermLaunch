@@ -31,7 +31,7 @@ A Tab running the command bound to a Command key. There is at most one per Comma
 A Command Tab for a command with `builtin = "launcher"` instead of `run`. It is not a terminal: a search field at the bottom with results growing upward, the best match nearest the field. Enter runs the selected result (open the app, copy the calculation) and Esc cancels; both close the Tab like a command that exited successfully. Its history is shared with the `oa` CLI.
 
 **Provider**:
-A compiled-in source of Launcher Tab results: apps (Spotlight, fuzzy match weighted by frecency) and the calculator. Every provider sees every query and returns no results when it doesn't apply; results are grouped by provider, calculator first. See [ADR 0003](docs/adr/0003-builtin-launcher-providers.md).
+A compiled-in source of Launcher Tab results: apps (Spotlight, fuzzy match weighted by frecency), the calculator, and Currency (`100 usd to eur`, from a cached Frankfurter rate table refreshed lazily in the background). Every provider sees every query and returns no results when it doesn't apply; results are grouped by provider: calculator, currency, then apps. See [ADR 0003](docs/adr/0003-builtin-launcher-providers.md) and [ADR 0004](docs/adr/0004-currency-provider-cached-rate-table.md).
 _Avoid_: Plugin
 
 **Shell Tab**:

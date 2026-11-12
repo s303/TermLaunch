@@ -16,17 +16,20 @@ final class LauncherView: NSView, TabContent, NSTextFieldDelegate {
     private let font: NSFont
     private var focused = false
     private var indexObserver: NSObjectProtocol?
+    private var ratesObserver: NSObjectProtocol?
 
-    init(index: AppIndex, theme: TerminalTheme) {
+    init(index: AppIndex, rates: RateStore, currency: @escaping () -> CurrencySettings, theme: TerminalTheme) {
         self.theme = theme
         font = theme.fontFamily.flatMap { NSFont(name: $0, size: theme.fontSize) }
             ?? NSFont.monospacedSystemFont(ofSize: theme.fontSize, weight: .regular)
         appProvider = AppProvider(index: index)
-        let calc = CalcProvider { text in
+        let copy: (String) -> Void = { text in
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(text, forType: .string)
         }
-        model = LauncherModel(providers: [calc, appProvider])
+        let calc = CalcProvider(copy: copy)
+        let currencyProvider = CurrencyProvider(store: rates, settings: currency, copy: copy)
+        model = LauncherModel(providers: [calc, currencyProvider, appProvider])
         list = ResultListView(model: model, theme: theme, font: font)
         super.init(frame: NSRect(x: 0, y: 0, width: 800, height: 400))
         wantsLayer = true
@@ -51,12 +54,17 @@ final class LauncherView: NSView, TabContent, NSTextFieldDelegate {
         indexObserver = NotificationCenter.default.addObserver(
             forName: AppIndex.didChange, object: index, queue: .main
         ) { [weak self] _ in MainActor.assumeIsolated { self?.reload() } } // queue: .main
+        ratesObserver = NotificationCenter.default.addObserver(
+            forName: RateStore.didChange, object: rates, queue: .main
+        ) { [weak self] _ in MainActor.assumeIsolated { self?.reload() } } // queue: .main
         reload()
     }
 
     required init?(coder: NSCoder) { fatalError("not supported") }
 
-    isolated deinit { if let indexObserver { NotificationCenter.default.removeObserver(indexObserver) } }
+    isolated deinit {
+        for observer in [indexObserver, ratesObserver].compactMap({ $0 }) { NotificationCenter.default.removeObserver(observer) }
+    }
 
     // MARK: TabContent
 

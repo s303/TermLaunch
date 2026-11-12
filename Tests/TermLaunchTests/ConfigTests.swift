@@ -253,4 +253,39 @@ final class ConfigTests: XCTestCase {
 
         XCTAssertEqual(try load("[tabbar]\nseparator = \"\"\n").config?.tabBar.separator, "")
     }
+
+    func testCurrencyDefaults() throws {
+        let c = try XCTUnwrap(try load("[dropdown]\nrows = 30\n").config)
+        XCTAssertEqual(c.currency, CurrencySettings(enabled: true, targets: ["USD", "EUR"]))
+    }
+
+    func testCurrencyTable() throws {
+        let result = try load("""
+        [launcher.currency]
+        enabled = false
+        targets = ["eur", "Rub", "USD",]
+        """)
+        XCTAssertEqual(result.warnings, [])
+        let c = try XCTUnwrap(result.config)
+        XCTAssertEqual(c.currency, CurrencySettings(enabled: false, targets: ["EUR", "RUB", "USD"]))
+    }
+
+    func testCurrencyBadValuesWarn() throws {
+        let result = try load("""
+        [launcher.currency]
+        enabled = "yes"
+        targets = ["eur", 5, "rub", "usd", "gbp"]
+        extra = 1
+        """)
+        let c = try XCTUnwrap(result.config)
+        XCTAssertEqual(c.currency, CurrencySettings(enabled: true, targets: ["EUR", "RUB", "USD"]))
+        XCTAssertEqual(result.warnings.count, 4, "\(result.warnings)")
+        XCTAssertTrue(result.warnings.contains { $0.contains("GBP") })
+    }
+
+    func testCurrencyTargetsMustBeAnArray() throws {
+        let result = try load("[launcher.currency]\ntargets = \"EUR\"\n")
+        XCTAssertEqual(result.config?.currency.targets, ["USD", "EUR"])
+        XCTAssertEqual(result.warnings.count, 1)
+    }
 }

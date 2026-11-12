@@ -67,6 +67,8 @@ targets:
       - Sources/TermLaunch/AppIndex.swift
       - Sources/TermLaunch/Calc.swift
       - Sources/TermLaunch/LauncherModel.swift
+      - Sources/TermLaunch/RateStore.swift
+      - Sources/TermLaunch/Currency.swift
       - Sources/TermLaunch/TabList.swift
     settings:
       base:

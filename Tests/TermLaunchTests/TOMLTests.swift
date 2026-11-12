@@ -47,4 +47,26 @@ final class TOMLTests: XCTestCase {
         XCTAssertNil(doc.root["a"]?.int)
         XCTAssertNil(doc.root["b"]?.int)
     }
+
+    func testInlineStringArrays() throws {
+        let doc = try TOML.parse("""
+        a = ["EUR", 'RUB' ,"USD"]
+        b = [ "x", ]   # trailing comma
+        c = []
+        d = ["a,b", "]", 1]
+        """)
+        XCTAssertEqual(doc.root["a"], .array([.string("EUR"), .string("RUB"), .string("USD")]))
+        XCTAssertEqual(doc.root["b"]?.array, [.string("x")])
+        XCTAssertEqual(doc.root["c"], .array([]))
+        XCTAssertEqual(doc.root["d"], .array([.string("a,b"), .string("]"), .int(1)]))
+        XCTAssertNil(doc.root["a"]?.string)
+    }
+
+    func testBadArraysThrow() {
+        XCTAssertThrowsError(try TOML.parse(#"a = ["x""#))
+        XCTAssertThrowsError(try TOML.parse(#"a = ["x",,"y"]"#))
+        XCTAssertThrowsError(try TOML.parse("a = [,]"))
+        XCTAssertThrowsError(try TOML.parse(#"a = [["x"]]"#))
+        XCTAssertThrowsError(try TOML.parse(#"a = [x]"#))
+    }
 }

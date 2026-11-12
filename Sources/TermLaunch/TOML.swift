@@ -1,12 +1,14 @@
 import Foundation
 
 /// Minimal TOML subset: comments, `key = value`, `[table]`, `[[array.of.tables]]`,
-/// basic/literal strings, integers, floats and booleans. Enough for config.toml.
+/// basic/literal strings, integers, floats, booleans and single-line arrays of
+/// those. Enough for config.toml.
 enum TOMLValue: Equatable {
     case string(String)
     case int(Int)
     case double(Double)
     case bool(Bool)
+    case array([TOMLValue])
 
     var string: String? { if case .string(let s) = self { return s }; return nil }
     var int: Int? {
@@ -24,6 +26,7 @@ enum TOMLValue: Equatable {
         }
     }
     var bool: Bool? { if case .bool(let b) = self { return b }; return nil }
+    var array: [TOMLValue]? { if case .array(let a) = self { return a }; return nil }
 }
 
 struct TOMLDocument {
@@ -97,6 +100,10 @@ enum TOML {
     }
 
     private static func parseValue(_ text: String, line: Int) throws -> TOMLValue {
+        if text.hasPrefix("[") {
+            guard text.hasSuffix("]") else { throw TOMLError(line: line, message: "unterminated array") }
+            return .array(try parseArray(String(text.dropFirst().dropLast()), line: line))
+        }
         if text == "true" { return .bool(true) }
         if text == "false" { return .bool(false) }
         if text.hasPrefix("\"") {
@@ -111,6 +118,39 @@ enum TOML {
         if let i = Int(cleaned) { return .int(i) }
         if let d = Double(cleaned) { return .double(d) }
         throw TOMLError(line: line, message: "unrecognised value \(text)")
+    }
+
+    /// The inside of `[a, b, ]`: scalars split on commas outside quotes; a trailing comma is allowed.
+    private static func parseArray(_ text: String, line: Int) throws -> [TOMLValue] {
+        var parts: [String] = []
+        var current = ""
+        var quote: Character?
+        var escaped = false
+        for ch in text {
+            if let q = quote {
+                if escaped { escaped = false }
+                else if ch == "\\", q == "\"" { escaped = true }
+                else if ch == q { quote = nil }
+                current.append(ch)
+            } else if ch == "\"" || ch == "'" {
+                quote = ch
+                current.append(ch)
+            } else if ch == "[" || ch == "]" {
+                throw TOMLError(line: line, message: "nested arrays are not supported")
+            } else if ch == "," {
+                parts.append(current)
+                current = ""
+            } else {
+                current.append(ch)
+            }
+        }
+        let last = current.trimmingCharacters(in: .whitespaces)
+        if !last.isEmpty { parts.append(last) }
+        return try parts.map {
+            let item = $0.trimmingCharacters(in: .whitespaces)
+            guard !item.isEmpty else { throw TOMLError(line: line, message: "empty array element") }
+            return try parseValue(item, line: line)
+        }
     }
 
     private static func unescape(_ s: String, line: Int) throws -> String {

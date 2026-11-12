@@ -25,7 +25,7 @@ The installed copy turns on launch at login the first time it starts (toggle in 
 
 ## Config
 
-`~/.config/termlaunch/config.toml` (created on first run, reloaded automatically; menu-bar item has Open/Reload). Tables: `[hotkeys]` (`dropdown`, optional `window` to toggle normal window mode), `[dropdown]` (`columns`, `rows`, `edge`, `fade_ms`, `chord_timeout_ms`), optional `[tabbar]`, and `[[command]]` bindings (`chord` and/or `hotkey`, `run`, optional `cwd` and `name` for its menu label and Tab title; `builtin = "launcher"` in place of `run` opens the built-in app launcher and calculator). Terminal appearance comes from your Ghostty config.
+`~/.config/termlaunch/config.toml` (created on first run, reloaded automatically; menu-bar item has Open/Reload). Tables: `[hotkeys]` (`dropdown`, optional `window` to toggle normal window mode), `[dropdown]` (`columns`, `rows`, `edge`, `fade_ms`, `chord_timeout_ms`), optional `[tabbar]`, and `[[command]]` bindings (`chord` and/or `hotkey`, `run`, optional `cwd` and `name` for its menu label and Tab title; `builtin = "launcher"` in place of `run` opens the built-in app launcher, calculator and currency converter), and optional `[launcher.currency]` (`enabled`, `targets`: up to 3 ISO codes shown for a bare `100 gbp`, default `["USD", "EUR"]`). Terminal appearance comes from your Ghostty config.
 
 ## Licenses
 

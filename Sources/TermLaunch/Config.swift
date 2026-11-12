@@ -90,6 +90,15 @@ struct TabBarStyle: Equatable {
     static let colorKeys = ["background", "active_background", "active_foreground", "number", "foreground"]
 }
 
+/// `[launcher.currency]`: the Launcher's currency conversions.
+struct CurrencySettings: Equatable {
+    var enabled = true
+    /// Shown for a bare `<amount> <FROM>` (uppercased ISO codes).
+    var targets = ["USD", "EUR"]
+
+    static let maxTargets = 3
+}
+
 /// App-level settings from ~/.config/termlaunch/config.toml. Terminal
 /// appearance comes from the user's Ghostty config, not from here.
 struct Config: Equatable {
@@ -103,6 +112,7 @@ struct Config: Equatable {
     var edge = Edge.top
     var commands: [CommandBinding] = []
     var tabBar = TabBarStyle()
+    var currency = CurrencySettings()
 
     static var path: URL {
         if let override = ProcessInfo.processInfo.environment["TERMLAUNCH_CONFIG"] {
@@ -138,6 +148,7 @@ struct Config: Equatable {
             "hotkeys": ["dropdown", "window"],
             "dropdown": ["edge", "columns", "rows", "fade_ms", "chord_timeout_ms"],
             "tabbar": Set(["separator"] + TabBarStyle.colorKeys),
+            "launcher.currency": ["enabled", "targets"],
         ]
         for key in doc.root.keys.sorted() { warnings.append("unknown key \"\(key)\" (keys belong in a table)") }
         for name in doc.tables.keys.sorted() where known[name] == nil { warnings.append("unknown table [\(name)]") }
@@ -181,6 +192,29 @@ struct Config: Equatable {
                 case "number": cfg.tabBar.number = spec
                 default: cfg.tabBar.foreground = spec
                 }
+            }
+        }
+
+        if let table = doc.tables["launcher.currency"] {
+            if let value = table["enabled"] {
+                if let v = value.bool { cfg.currency.enabled = v } else { warnings.append("[launcher.currency]: enabled must be true or false") }
+            }
+            if let value = table["targets"] {
+                if let items = value.array {
+                    var targets: [String] = []
+                    for item in items {
+                        guard let code = item.string else {
+                            warnings.append("[launcher.currency]: targets must be strings")
+                            continue
+                        }
+                        targets.append(code.uppercased())
+                    }
+                    if targets.count > CurrencySettings.maxTargets {
+                        warnings.append("[launcher.currency]: at most \(CurrencySettings.maxTargets) targets; ignoring \(targets.dropFirst(CurrencySettings.maxTargets).joined(separator: ", "))")
+                        targets = Array(targets.prefix(CurrencySettings.maxTargets))
+                    }
+                    cfg.currency.targets = targets
+                } else { warnings.append("[launcher.currency]: targets must be an array of strings") }
             }
         }
 
@@ -324,6 +358,12 @@ struct Config: Equatable {
     # [[command]]
     # chord = "o"
     # builtin = "launcher"
+    #
+    # The launcher also converts currencies: "100 usd to eur", "100 usd". Rates
+    # come from frankfurter.dev, fetched when a conversion is typed and cached.
+    # [launcher.currency]
+    # enabled = true
+    # targets = ["USD", "EUR"]   # shown for "100 gbp"; at most 3
 
     """
 }

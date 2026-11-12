@@ -133,6 +133,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         applyChordConfig(cfg)
         content?.tabBarStyle = cfg.tabBar
+        content?.currency = cfg.currency
         if windowMode { NSApp.mainMenu = makeMainMenu() }
         hotKey = nil // unregisters the old one
         if let spec = KeySpec.parse(cfg.activation) {
