@@ -72,9 +72,9 @@ final class DropdownContentView: NSView {
         add(kind: .shell, title: list.nextShellTitle(), command: nil)
     }
 
-    /// Focuses the first Shell Tab, creating one if none exists.
+    /// Focuses the most recently active Shell Tab, creating one if none exists.
     func selectMainTab() {
-        if let i = list.firstShellIndex { select(i) } else { addShellTab() }
+        if let i = list.lastActiveShellIndex ?? list.firstShellIndex { select(i) } else { addShellTab() }
     }
 
     /// Opens the Command Tab for a binding, or focuses the existing one

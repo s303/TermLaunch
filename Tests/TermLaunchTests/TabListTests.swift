@@ -135,4 +135,22 @@ final class TabListTests: XCTestCase {
         list.append(Entry(.shell))
         XCTAssertEqual(list.firstShellIndex, 1)
     }
+
+    func testLastActiveShellFollowsSelectionAndSkipsCommandTabs() {
+        var list = TabList<Entry>()
+        let a = Entry(.shell), b = Entry(.shell), c = Entry(.command(id: "x"))
+        [a, b, c].forEach { list.append($0) }
+        XCTAssertEqual(list.lastActiveShellIndex, 1)
+        list.select(0)
+        list.select(2)
+        XCTAssertEqual(list.lastActiveShellIndex, 0)
+    }
+
+    func testLastActiveShellFallsBackToPreviousAfterClose() {
+        var (list, es) = make(3)
+        list.select(0)
+        list.select(1)
+        list.remove(es[1])
+        XCTAssertEqual(list.lastActiveShellIndex, list.index(of: es[0]))
+    }
 }

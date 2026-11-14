@@ -237,7 +237,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .hideConsole:
             hideDropdown()
         case .showConsole:
-            content?.selectMainTab() // the Activation key always lands on the main Shell Tab
+            content?.selectMainTab() // the Activation key lands on the last active Shell Tab
             showDropdown(startChord: true)
         case .windowChord:
             termWindow?.chord.begin()
