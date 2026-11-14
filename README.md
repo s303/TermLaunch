@@ -29,4 +29,4 @@ The installed copy turns on launch at login the first time it starts (toggle in 
 
 ## Licenses
 
-TermLaunch embeds [Ghostty](https://ghostty.org) (MIT) and its bundled components. Notices are in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) and ship inside the app bundle.
+TermLaunch embeds [Ghostty](https://ghostty.org) (MIT) and its bundled components. Notices are in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) and ship inside the app bundle. Currency rates come from the [Frankfurter](https://frankfurter.dev) API (blended central-bank reference rates, free for commercial use).

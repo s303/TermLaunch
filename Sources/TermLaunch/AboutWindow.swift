@@ -96,8 +96,8 @@ private final class DemoView: NSView {
         Star(x: .random(in: -1...1), y: .random(in: -1...1), z: .random(in: 0.05...1))
     }
 
-    private let scroll = "   ***  TERMLAUNCH BY MIK  ***  CODED WITH CLAUDE BY ANTHROPIC  ***  "
-        + "TERMINAL ENGINE: LIBGHOSTTY BY MITCHELL HASHIMOTO AND THE GHOSTTY CONTRIBUTORS  ***  "
+    private let scroll = "   ***  EXCHANGE RATES: FRANKFURTER.DEV, BLENDED FROM CENTRAL BANKS AND OFFICIAL SOURCES  ***  "
+        + "CODED WITH CLAUDE BY ANTHROPIC  ***  "
         + "BUILT WITH SWIFT, APPKIT, CARBON, METAL AND CORE GRAPHICS  ***  "
         + "PROJECT GENERATED WITH XCODEGEN, GHOSTTY BUILT WITH ZIG  ***   "
 

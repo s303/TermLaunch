@@ -51,3 +51,7 @@ GhosttyKit statically links, or embeds, the components below. Each is used under
 | iTerm2-Color-Schemes (theme collection in `ghostty/themes`) | MIT, Copyright (c) Mark Badolato and contributors; individual themes remain the work of their authors |
 
 The FreeType License requires this credit: portions of this software are copyright (c) The FreeType Project (www.freetype.org). All rights reserved.
+
+## Data sources
+
+Currency conversion uses exchange rates from the [Frankfurter](https://frankfurter.dev) public API (`api.frankfurter.dev/v2/rates`; the Frankfurter software is MIT-licensed). The API blends reference rates published by central banks and other official sources, including the European Central Bank; the blended rates are Frankfurter's own calculation and are free to use, including commercially. TermLaunch does not query individual provider endpoints, whose data stays subject to each provider's own terms. Rates are reference rates, not live market quotes, and are provided without warranty.
