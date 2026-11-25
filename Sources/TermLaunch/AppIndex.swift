@@ -177,7 +177,7 @@ final class AppProvider: LauncherProvider {
 
     func results(for query: String) -> [LauncherItem] {
         AppRanker.rank(index.apps, query: query, frecency: frecency).map { app in
-            LauncherItem(title: app.name, iconPath: app.path) { [weak self] in
+            LauncherItem(title: app.name, iconPath: app.path, subtitle: app.locationNote) { [weak self] in
                 self?.reloadFrecency() // don't overwrite what `oa` wrote meanwhile
                 self?.frecency.record(app.path)
                 NSWorkspace.shared.openApplication(

@@ -5,6 +5,8 @@ struct LauncherItem {
     let title: String
     /// File whose Finder icon the row shows (an app bundle).
     var iconPath: String? = nil
+    /// Dim, smaller text right after the title, e.g. an app's folder.
+    var subtitle: String? = nil
     /// Short right-aligned note, e.g. "⏎ copy".
     var hint: String? = nil
     let run: @MainActor () -> Void

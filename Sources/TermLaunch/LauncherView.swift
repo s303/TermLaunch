@@ -250,9 +250,26 @@ private final class ResultListView: NSView {
             let para = NSMutableParagraphStyle()
             para.lineBreakMode = .byTruncatingTail
             let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color, .paragraphStyle: para]
+            let available = max(bounds.width - textX - pad - hintWidth - pad, 0)
+            let titleWidth = min(ceil((item.title as NSString).size(withAttributes: attrs).width), available)
             (item.title as NSString).draw(
-                in: NSRect(x: textX, y: textY, width: max(bounds.width - textX - pad - hintWidth - pad, 0), height: textHeight),
-                withAttributes: attrs)
+                in: NSRect(x: textX, y: textY, width: titleWidth, height: textHeight), withAttributes: attrs)
+            if let sub = item.subtitle {
+                let subFont = NSFont(descriptor: font.fontDescriptor, size: font.pointSize * 0.8) ?? font
+                let subPara = NSMutableParagraphStyle()
+                subPara.lineBreakMode = .byTruncatingMiddle
+                let subAttrs: [NSAttributedString.Key: Any] = [
+                    .font: subFont, .foregroundColor: theme.color(8), .paragraphStyle: subPara]
+                let gap = pad
+                let subHeight = ceil(subFont.ascender - subFont.descender)
+                let subX = textX + titleWidth + gap
+                let subWidth = available - titleWidth - gap
+                if subWidth > 0 {
+                    (sub as NSString).draw(
+                        in: NSRect(x: subX, y: row.minY + (rowHeight - subHeight) / 2, width: subWidth, height: subHeight),
+                        withAttributes: subAttrs)
+                }
+            }
         }
     }
 

@@ -99,6 +99,16 @@ final class FrecencyTests: XCTestCase {
 final class FuzzyScorerTests: XCTestCase {
     private func apps(_ names: [String]) -> [AppEntry] { names.map { AppEntry(path: "/Applications/\($0).app") } }
 
+    func testLocationNote() {
+        let home = NSHomeDirectory()
+        XCTAssertNil(AppEntry(path: "/Applications/Utilities/Terminal.app").locationNote)
+        XCTAssertNil(AppEntry(path: home + "/Applications/Foo.app").locationNote)
+        XCTAssertNil(AppEntry(path: "/System/Applications/Calendar.app").locationNote)
+        XCTAssertEqual(AppEntry(path: home + "/Downloads/Foo.app").locationNote, "~/Downloads")
+        XCTAssertEqual(AppEntry(path: home + "/Foo.app").locationNote, "~")
+        XCTAssertEqual(AppEntry(path: "/opt/homebrew/Caskroom/x/Foo.app").locationNote, "/opt/homebrew/Caskroom/x")
+    }
+
     func testAppEntryName() {
         XCTAssertEqual(AppEntry(path: "/Applications/Utilities/Terminal.app").name, "Terminal")
     }

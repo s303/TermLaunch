@@ -120,6 +120,17 @@ struct AppEntry: Equatable {
         self.path = path
         name = ((path as NSString).lastPathComponent as NSString).deletingPathExtension
     }
+
+    /// The containing folder, home shortened to `~`, for apps outside the
+    /// standard macOS app folders; nil for those (no label needed).
+    var locationNote: String? {
+        let home = NSHomeDirectory()
+        let standard = ["/Applications/", home + "/Applications/", "/System/"]
+        if standard.contains(where: path.hasPrefix) { return nil }
+        let dir = (path as NSString).deletingLastPathComponent
+        if dir == home { return "~" }
+        return dir.hasPrefix(home + "/") ? "~" + dir.dropFirst(home.count) : dir
+    }
 }
 
 enum AppRanker {
