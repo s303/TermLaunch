@@ -208,4 +208,15 @@ final class AppIndexTests: XCTestCase {
         XCTAssertFalse(ok("/Users/me/Applications/Handler.app", ["LSBackgroundOnly": true]))
         XCTAssertFalse(ok("/Users/me/Library/Application Support/Google/GoogleUpdater.app", ["LSUIElement": "1"]))
     }
+
+    func testBuildOutputsAndDuplicates() {
+        XCTAssertFalse(AppIndex.isLaunchTarget("/Users/me/eris/build/Build/Products/Debug/Eris.app", info: [:]))
+        XCTAssertFalse(AppIndex.isLaunchTarget("/Users/me/eris/build/release/Build/Products/Release/Eris.app", info: [:]))
+        XCTAssertTrue(AppIndex.isLaunchTarget("/Users/me/eris/dist/Eris.app", info: [:]))
+        let ids = ["/Users/me/eris/dist/Eris.app": "com.eris", "/Applications/Eris.app": "com.eris",
+                   "/Users/me/x/Other.app": "com.other", "/Users/me/y/NoID.app": ""]
+        let out = AppIndex.dedupe(Array(ids.keys)) { ids[$0] }
+        XCTAssertEqual(Set(out), ["/Applications/Eris.app", "/Users/me/x/Other.app", "/Users/me/y/NoID.app"])
+        XCTAssertEqual(out.count, 3)
+    }
 }

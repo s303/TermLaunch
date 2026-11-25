@@ -12,6 +12,8 @@ final class AppIndex {
     private var scanned: [AppEntry] = []
     /// `AppEntry.isLaunchTarget` per path; bundles rarely change kind. Main thread only.
     private var launchable: [String: Bool] = [:]
+    /// Bundle identifier per path, for collapsing copies of one app. Main thread only.
+    private var bundleIDs: [String: String] = [:]
     /// Bumped by each rebuild so a stale background result isn't published.
     private var generation = 0
 
@@ -56,10 +58,13 @@ final class AppIndex {
         if misses.isEmpty { return publish(candidates) }
         // Info.plist reads happen off the main thread.
         DispatchQueue.global(qos: .utility).async { [weak self] in
-            let checked = misses.map { ($0, Self.isLaunchTarget($0)) }
+            let checked = misses.map { ($0, Self.isLaunchTarget($0), Self.bundleID($0)) }
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
-                for (path, result) in checked { self.launchable[path] = result }
+                for (path, result, id) in checked {
+                    self.launchable[path] = result
+                    self.bundleIDs[path] = id ?? ""
+                }
                 // A newer rebuild is in flight (or already published); it covers these paths.
                 if current == self.generation { self.publish(candidates) }
             }
@@ -67,7 +72,8 @@ final class AppIndex {
     }
 
     private func publish(_ candidates: [String]) {
-        apps = candidates.filter { launchable[$0] == true }.map(AppEntry.init(path:))
+        let targets = candidates.filter { launchable[$0] == true }
+        apps = Self.dedupe(targets) { self.bundleIDs[$0] }.map(AppEntry.init(path:))
         NotificationCenter.default.post(name: Self.didChange, object: self)
     }
 
@@ -93,8 +99,36 @@ final class AppIndex {
         // Anything else under a Library/ (or Xcode's DerivedData, itself under
         // ~/Library) is a helper, daemon, template, or build copy.
         if path.contains("/Library/") || path.contains("/DerivedData/") { return false }
+        // xcodebuild output, wherever -derivedDataPath redirected it.
+        if path.contains("/Build/Products/") { return false }
         // Menu-bar apps (LSUIElement) stay; faceless helpers don't.
         return !flag(info["LSBackgroundOnly"])
+    }
+
+    nonisolated static func bundleID(_ path: String) -> String? {
+        let plist = FileManager.default.fileExists(atPath: path + "/WrappedBundle/Info.plist")
+            ? path + "/WrappedBundle/Info.plist" : path + "/Contents/Info.plist"
+        return (NSDictionary(contentsOfFile: plist) as? [String: Any])?["CFBundleIdentifier"] as? String
+    }
+
+    /// Collapses copies of one app (same bundle ID, e.g. a build output next to
+    /// the installed one) to the most canonical path. Paths without an ID stay.
+    nonisolated static func dedupe(_ paths: [String], bundleID: (String) -> String?) -> [String] {
+        func rank(_ p: String) -> Int {
+            if p.hasPrefix("/Applications/") { return 0 }
+            if p.hasPrefix(NSHomeDirectory() + "/Applications/") { return 1 }
+            if p.hasPrefix("/System/") { return 2 }
+            return 3
+        }
+        var best: [String: String] = [:]
+        var out: [String] = []
+        for p in paths {
+            guard let id = bundleID(p), !id.isEmpty else { out.append(p); continue }
+            if let cur = best[id] {
+                if (rank(p), p.count, p) < (rank(cur), cur.count, cur) { best[id] = p }
+            } else { best[id] = p }
+        }
+        return out + best.values
     }
 
     nonisolated private static func flag(_ value: Any?) -> Bool {
