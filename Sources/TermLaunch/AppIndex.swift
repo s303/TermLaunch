@@ -23,6 +23,11 @@ final class AppIndex {
             center.addObserver(forName: name, object: query, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.rebuild() } } // queue: .main
         }
         query.start()
+        refresh()
+    }
+
+    /// Rescans the standard folders (Spotlight can lag behind a `brew install`).
+    func refresh() {
         DispatchQueue.global(qos: .utility).async { [weak self] in
             let found = Self.scanFolders()
             DispatchQueue.main.async { [weak self] in

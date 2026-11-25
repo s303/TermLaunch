@@ -9,6 +9,7 @@ final class LauncherView: NSView, TabContent, NSTextFieldDelegate {
 
     private let model: LauncherModel
     private let appProvider: AppProvider
+    private let appIndex: AppIndex
     private let field = SearchField()
     private let prompt = NSTextField(labelWithString: ">")
     private let list: ResultListView
@@ -22,6 +23,7 @@ final class LauncherView: NSView, TabContent, NSTextFieldDelegate {
         self.theme = theme
         font = theme.fontFamily.flatMap { NSFont(name: $0, size: theme.fontSize) }
             ?? NSFont.monospacedSystemFont(ofSize: theme.fontSize, weight: .regular)
+        appIndex = index
         appProvider = AppProvider(index: index)
         let copy: (String) -> Void = { text in
             NSPasteboard.general.clearContents()
@@ -77,6 +79,7 @@ final class LauncherView: NSView, TabContent, NSTextFieldDelegate {
         guard focused, !self.focused else { return }
         // Shown again: fresh history and apps, and typing replaces the old query.
         appProvider.reloadFrecency()
+        appIndex.refresh()
         reload()
         field.selectText(nil)
     }
